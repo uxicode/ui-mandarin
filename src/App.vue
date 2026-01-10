@@ -9,17 +9,8 @@
       <div class="app__sidebar">
         <TaskList
           :selected-task-id="selectedTaskId"
-          @add="handleAdd"
           @select="handleSelect"
-          @edit="handleEdit"
           @delete="handleDelete"
-        />
-
-        <TaskForm
-          v-if="showForm"
-          :task="editingTask"
-          @submit="handleFormSubmit"
-          @cancel="handleFormCancel"
         />
       </div>
 
@@ -31,58 +22,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
 import TaskList from '@/components/TaskList.vue'
-import TaskForm from '@/components/TaskForm.vue'
 import PriorityMatrix from '@/components/PriorityMatrix.vue'
-import type { Task } from '@/types/task'
 
 const taskStore = useTaskStore()
 
 const selectedTaskId = ref<string | undefined>()
-const showForm = ref(false)
-const editingTaskId = ref<string | undefined>()
 
-const editingTask = computed(() => {
-  if (!editingTaskId.value) return undefined
-  return taskStore.getTaskById(editingTaskId.value)
-})
-
-function handleAdd() {
-  editingTaskId.value = undefined
-  showForm.value = true
-}
-
+// 업무 선택
 function handleSelect(taskId: string) {
   selectedTaskId.value = taskId
 }
 
-function handleEdit(taskId: string) {
-  editingTaskId.value = taskId
-  showForm.value = true
-}
-
+// 업무 삭제
 function handleDelete(taskId: string) {
   taskStore.deleteTask(taskId)
   if (selectedTaskId.value === taskId) {
     selectedTaskId.value = undefined
   }
-}
-
-function handleFormSubmit(task: Omit<Task, 'id'>) {
-  if (editingTaskId.value) {
-    taskStore.updateTask(editingTaskId.value, task)
-  } else {
-    taskStore.addTask(task)
-  }
-  showForm.value = false
-  editingTaskId.value = undefined
-}
-
-function handleFormCancel() {
-  showForm.value = false
-  editingTaskId.value = undefined
 }
 </script>
 

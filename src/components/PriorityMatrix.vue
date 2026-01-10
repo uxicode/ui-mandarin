@@ -173,7 +173,7 @@ const cardMaxWidth = 180 // max-width of task card
 const cardMaxHeight = 100 // estimated max height of task card
 
 function normalizeScore(score: number): number {
-  // Normalize from -2~+2 to 0~1
+  // -2~+2를 0~1 범위로 정규화
   return (score + scoreRange) / (scoreRange * 2)
 }
 
@@ -191,11 +191,11 @@ function getTaskCardStyle(task: TaskWithComputed) {
   const normalizedImportance = normalizeScore(importanceScore)
   const normalizedUrgency = normalizeScore(urgencyScore)
 
-  // Calculate position with 20px padding from edges
+  // 20px 여백을 포함하여 위치 계산
   // X: left to right (importance: low to high, 0 = left, 1 = right)
   // Y: top to bottom (urgency: high at top, low at bottom, 0 = top, 1 = bottom)
   if (containerWidth.value === 0 || containerHeight.value === 0) {
-    // Fallback to percentage if container size not available
+    // 컨테이너 크기가 없으면 백분율 기준으로 위치 계산
     const xPercent = normalizedImportance * 100
     const yPercent = (1 - normalizedUrgency) * 100
     return {
@@ -205,16 +205,16 @@ function getTaskCardStyle(task: TaskWithComputed) {
     }
   }
 
-  // Calculate position in pixels with padding
-  // Account for card size since transform uses center point
+  // 여백(padding)을 포함하여 픽셀 기준으로 위치 계산
+  // transform이 카드의 중앙을 기준으로 적용되기 때문에 카드 크기를 고려함
   const cardHalfWidth = cardMaxWidth / 2
   const cardHalfHeight = cardMaxHeight / 2
   
-  // Available area considering card size
+  // 카드 크기를 고려한 사용 가능한 영역
   const availableWidth = containerWidth.value - (paddingPx + cardHalfWidth) * 2
   const availableHeight = containerHeight.value - (paddingPx + cardHalfHeight) * 2
   
-  // Calculate position ensuring card stays within bounds
+  // 카드가 가능한 영역 내에 위치하도록 위치 계산
   const x = paddingPx + cardHalfWidth + normalizedImportance * availableWidth
   const y = paddingPx + cardHalfHeight + (1 - normalizedUrgency) * availableHeight
 
@@ -236,7 +236,7 @@ onMounted(async () => {
   updateContainerSize()
   window.addEventListener('resize', updateContainerSize)
   
-  // Use ResizeObserver for more accurate size tracking
+  // 더 정확한 크기 추적을 위해 ResizeObserver 사용
   if (containerRef.value) {
     resizeObserver = new ResizeObserver(() => {
       updateContainerSize()
@@ -255,7 +255,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .priority-matrix {
-  height: 100%;
+  // height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
