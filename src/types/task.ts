@@ -8,6 +8,9 @@ export interface Task {
   title: string
   description?: string
   scores: TaskScores
+  completed: boolean
+  startDate?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
+  deadline?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
 }
 
 export interface ComputedScores {

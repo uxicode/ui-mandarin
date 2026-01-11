@@ -37,6 +37,15 @@ npm run build
 
 # 빌드 미리보기
 npm run preview
+
+# 테스트 실행
+npm test
+
+# 테스트 UI 모드
+npm run test:ui
+
+# 테스트 커버리지 확인
+npm run test:coverage
 ```
 
 ## 사용 방법

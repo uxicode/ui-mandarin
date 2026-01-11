@@ -10,10 +10,21 @@ export const useTaskStore = defineStore('task', () => {
     return tasks.value.map(computeTask)
   })
 
+  // 미완료 업무만
+  const incompleteTasks = computed<Task[]>(() => {
+    return tasks.value.filter(task => !task.completed)
+  })
+
+  // 완료된 업무만
+  const completedTasks = computed<Task[]>(() => {
+    return tasks.value.filter(task => task.completed)
+  })
+
   function addTask(task: Omit<Task, 'id'>) {
     const newTask: Task = {
       ...task,
       id: crypto.randomUUID(),
+      completed: false,
     }
     tasks.value.push(newTask)
   }
@@ -22,6 +33,13 @@ export const useTaskStore = defineStore('task', () => {
     const index = tasks.value.findIndex((task) => task.id === id)
     if (index !== -1) {
       tasks.value[index] = { ...tasks.value[index], ...updates }
+    }
+  }
+
+  function toggleTaskComplete(id: string) {
+    const task = tasks.value.find((task) => task.id === id)
+    if (task) {
+      task.completed = !task.completed
     }
   }
 
@@ -39,8 +57,11 @@ export const useTaskStore = defineStore('task', () => {
   return {
     tasks,
     tasksWithComputed,
+    incompleteTasks,
+    completedTasks,
     addTask,
     updateTask,
+    toggleTaskComplete,
     deleteTask,
     getTaskById,
   }

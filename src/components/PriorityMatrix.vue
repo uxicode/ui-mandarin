@@ -114,14 +114,22 @@
         v-for="task in tasksWithComputed"
         :key="task.id"
         class="priority-matrix__task-card"
-        :class="`priority-matrix__task-card--${task.quadrant.toLowerCase()}`"
+        :class="[
+          `priority-matrix__task-card--${task.quadrant.toLowerCase()}`,
+          { 'priority-matrix__task-card--completed': task.completed }
+        ]"
         :style="getTaskCardStyle(task)"
         @click="handleTaskClick(task.id)"
         @mouseenter="hoveredTaskId = task.id"
         @mouseleave="hoveredTaskId = null"
       >
         <div class="priority-matrix__task-card-content">
-          <h3 class="priority-matrix__task-card-title">{{ task.title }}</h3>
+          <h3 
+            class="priority-matrix__task-card-title" 
+            :class="{ 'priority-matrix__task-card-title--completed': task.completed }"
+          >
+            {{ task.title }}
+          </h3>
           <div
             v-if="hoveredTaskId === task.id"
             class="priority-matrix__task-card-scores"
@@ -339,6 +347,16 @@ onUnmounted(() => {
     z-index: 10;
   }
 
+  &--completed {
+    opacity: 0.5;
+    background: $color-gray-100;
+    border-style: dashed;
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+
   &--a {
     border-color: $color-danger;
 
@@ -384,6 +402,11 @@ onUnmounted(() => {
   color: $color-gray-900;
   line-height: 1.4;
   word-break: break-word;
+
+  &--completed {
+    text-decoration: line-through;
+    color: $color-gray-500;
+  }
 }
 
 .priority-matrix__task-card-scores {

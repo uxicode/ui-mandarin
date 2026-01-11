@@ -23,6 +23,30 @@
         />
       </div>
 
+      <div class="task-form__field">
+        <label class="task-form__label">시작일시</label>
+        <VueDatePicker
+          v-model="formData.startDate"
+          :enable-time-picker="true"
+          :format="'yyyy년 MM월 dd일 HH:mm'"
+          placeholder="시작일시를 선택하세요"
+          auto-apply
+          :clearable="true"
+        />
+      </div>
+
+      <div class="task-form__field">
+        <label class="task-form__label">마감일시</label>
+        <VueDatePicker
+          v-model="formData.deadline"
+          :enable-time-picker="true"
+          :format="'yyyy년 MM월 dd일 HH:mm'"
+          placeholder="마감일시를 선택하세요"
+          auto-apply
+          :clearable="true"
+        />
+      </div>
+
       <div class="task-form__scores">
         <h3 class="task-form__scores-title">점수 입력</h3>
         <StarRating
@@ -49,6 +73,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { VueDatePicker } from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import StarRating from './StarRating.vue'
 import type { Task, TaskScores } from '@/types/task'
 
@@ -69,10 +95,14 @@ const isEditing = computed(() => !!props.task)
 const formData = ref<{
   title: string
   description?: string
+  startDate?: Date | null
+  deadline?: Date | null
   scores: TaskScores
 }>({
   title: '',
   description: '',
+  startDate: null,
+  deadline: null,
   scores: {
     importance: 3,
     urgency: 3,
@@ -86,12 +116,16 @@ watch(
       formData.value = {
         title: task.title,
         description: task.description || '',
+        startDate: task.startDate ? new Date(task.startDate) : null,
+        deadline: task.deadline ? new Date(task.deadline) : null,
         scores: { ...task.scores },
       }
     } else {
       formData.value = {
         title: '',
         description: '',
+        startDate: null,
+        deadline: null,
         scores: {
           importance: 3,
           urgency: 3,
@@ -106,7 +140,10 @@ function handleSubmit() {
   emit('submit', {
     title: formData.value.title,
     description: formData.value.description || undefined,
+    startDate: formData.value.startDate ? formData.value.startDate.toISOString() : undefined,
+    deadline: formData.value.deadline ? formData.value.deadline.toISOString() : undefined,
     scores: formData.value.scores,
+    completed: false,
   })
 }
 
@@ -214,6 +251,35 @@ function handleCancel() {
       background: $color-primary-dark;
     }
   }
+}
+
+// Vue Datepicker 커스터마이징
+:deep(.dp__input) {
+  padding: $spacing-md;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  font-size: 1rem;
+  color: $color-gray-900;
+  background: $color-white;
+
+  &:focus {
+    border-color: $color-primary;
+  }
+
+  &::placeholder {
+    color: $color-gray-400;
+  }
+}
+
+:deep(.dp__main) {
+  font-family: inherit;
+}
+
+:deep(.dp__theme_light) {
+  --dp-primary-color: #{$color-primary};
+  --dp-primary-text-color: #{$color-white};
+  --dp-hover-color: #{$color-gray-100};
+  --dp-border-color: #{$color-gray-300};
 }
 </style>
 
