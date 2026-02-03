@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
 import TaskList from '@/components/TaskList.vue'
 import PriorityMatrix from '@/components/PriorityMatrix.vue'
@@ -31,16 +31,28 @@ const taskStore = useTaskStore()
 
 const selectedTaskId = ref<string | undefined>()
 
+onMounted(async () => {
+  try {
+    await taskStore.fetchTasks()
+  } catch (error) {
+    console.error('업무 목록 불러오기 실패:', error)
+  }
+})
+
 // 업무 선택
 function handleSelect(taskId: string) {
   selectedTaskId.value = taskId
 }
 
 // 업무 삭제
-function handleDelete(taskId: string) {
-  taskStore.deleteTask(taskId)
-  if (selectedTaskId.value === taskId) {
-    selectedTaskId.value = undefined
+async function handleDelete(taskId: string) {
+  try {
+    await taskStore.deleteTask(taskId)
+    if (selectedTaskId.value === taskId) {
+      selectedTaskId.value = undefined
+    }
+  } catch (error) {
+    console.error('업무 삭제 실패:', error)
   }
 }
 </script>

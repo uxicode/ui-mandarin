@@ -387,9 +387,19 @@ function handleAddClick() {
 }
 
 // 새 업무 추가 제출
-function handleAddSubmit(task: Omit<Task, 'id'>) {
-  taskStore.addTask(task)
-  showAddForm.value = false
+async function handleAddSubmit(task: Omit<Task, 'id'>) {
+  try {
+    await taskStore.addTask({
+      title: task.title,
+      description: task.description,
+      scores: task.scores,
+      startDate: task.startDate,
+      deadline: task.deadline,
+    })
+    showAddForm.value = false
+  } catch (error) {
+    console.error('업무 추가 실패:', error)
+  }
 }
 
 // 새 업무 추가 취소
@@ -418,15 +428,19 @@ function handleEditClick(taskId: string) {
 }
 
 // 업무 수정 제출
-function handleEditSubmit(taskId: string) {
-  taskStore.updateTask(taskId, {
-    title: editFormData.value.title,
-    description: editFormData.value.description || undefined,
-    startDate: editFormData.value.startDate ? editFormData.value.startDate.toISOString() : undefined,
-    deadline: editFormData.value.deadline ? editFormData.value.deadline.toISOString() : undefined,
-    scores: editFormData.value.scores,
-  })
-  editingTaskId.value = undefined
+async function handleEditSubmit(taskId: string) {
+  try {
+    await taskStore.updateTask(taskId, {
+      title: editFormData.value.title,
+      description: editFormData.value.description || undefined,
+      startDate: editFormData.value.startDate ? editFormData.value.startDate.toISOString() : undefined,
+      deadline: editFormData.value.deadline ? editFormData.value.deadline.toISOString() : undefined,
+      scores: editFormData.value.scores,
+    })
+    editingTaskId.value = undefined
+  } catch (error) {
+    console.error('업무 수정 실패:', error)
+  }
 }
 
 // 업무 수정 취소
@@ -435,8 +449,12 @@ function handleEditCancel() {
 }
 
 // 업무 완료 토글
-function handleToggleComplete(taskId: string) {
-  taskStore.toggleTaskComplete(taskId)
+async function handleToggleComplete(taskId: string) {
+  try {
+    await taskStore.toggleTaskComplete(taskId)
+  } catch (error) {
+    console.error('업무 완료 상태 변경 실패:', error)
+  }
 }
 
 // 업무 삭제
