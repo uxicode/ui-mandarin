@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "cd server && npm run dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
@@ -22,6 +24,7 @@
     "@vitest/ui": "^4.0.16",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.5.1",
+    "concurrently": "^9.2.1",
     "happy-dom": "^20.1.0",
     "jsdom": "^27.4.0",
     "sass": "^1.71.1",
