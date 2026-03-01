@@ -8,10 +8,22 @@ dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
-// CORS 설정
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173']
+const PROD_ORIGINS = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+  : []
+
+const allowedOrigins = IS_PRODUCTION ? PROD_ORIGINS : [...DEV_ORIGINS, ...PROD_ORIGINS]
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // 서버 간 요청(origin 없음)은 허용
+    if (!origin) return callback(null, true)
+    if (allowedOrigins.includes(origin)) return callback(null, true)
+    callback(new Error(`CORS blocked: ${origin}`))
+  },
   credentials: true
 }))
 
