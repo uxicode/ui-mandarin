@@ -2,8 +2,12 @@
   "name": "mandarin-api",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "node --watch server.js",
+    "build": "npm install",
     "start": "node server.js"
   },
   "dependencies": {
