@@ -11,11 +11,14 @@ const PORT = process.env.PORT || 3001
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
 const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173']
-const PROD_ORIGINS = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : []
+const PROD_ORIGINS = [
+  'https://ui-mandarin.vercel.app',
+  ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(o => o.trim()) : []),
+]
 
-const allowedOrigins = IS_PRODUCTION ? PROD_ORIGINS : [...DEV_ORIGINS, ...PROD_ORIGINS]
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? PROD_ORIGINS
+  : [...DEV_ORIGINS, ...PROD_ORIGINS]
 
 app.use(cors({
   origin: (origin, callback) => {
