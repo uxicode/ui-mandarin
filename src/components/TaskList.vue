@@ -665,7 +665,7 @@ function handleDeleteClick(taskId: string) {
   border: 2px solid transparent;
   transition: all 0.3s ease;
   min-width: 0;
-  overflow: hidden;
+  // overflow: hidden;
 
   &--selected {
     border-color: $color-primary;
