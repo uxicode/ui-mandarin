@@ -33,7 +33,7 @@
       <h3 class="task-list__section-title">진행 중 ({{ incompleteTasks.length }})</h3>
       <div class="task-list__items">
         <div
-          v-for="task in incompleteTasks"
+          v-for="(task, index) in incompleteTasks"
           :key="task.id"
           class="task-item"
           :class="{ 
@@ -56,9 +56,37 @@
               <h3 class="task-item__title" :class="{ 'task-item__title--completed': task.completed }">
                 {{ task.title }}
               </h3>
-              <p v-if="task.description" class="task-item__description">
-                {{ task.description }}
-              </p>
+              <div
+                v-if="task.description"
+                :ref="index === 0 ? setDescriptionWrapRef : undefined"
+                class="task-item__description-wrap"
+              >
+                <button
+                  v-if="isDescriptionLong(task.description)"
+                  type="button"
+                  class="task-item__description-toggle"
+                  :title="expandedDescriptionIds.has(task.id) ? '접기' : '펼치기'"
+                  @click.stop="toggleDescriptionExpand(task.id)"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="task-item__description-arrow"
+                    :class="{ 'task-item__description-arrow--expanded': expandedDescriptionIds.has(task.id) }"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <p
+                  class="task-item__description"
+                  :class="{ 'task-item__description--collapsed': isDescriptionLong(task.description) && !expandedDescriptionIds.has(task.id) }"
+                >
+                  {{ getDisplayDescription(task.description, task.id) }}
+                </p>
+              </div>
               <div class="task-item__dates">
                 <div v-if="task.startDate" class="task-item__date-info" :class="{ 'task-item__date-info--not-started': !hasStarted(task.startDate) }">
                   <svg
@@ -247,9 +275,33 @@
               <h3 class="task-item__title task-item__title--completed">
                 {{ task.title }}
               </h3>
-              <p v-if="task.description" class="task-item__description">
-                {{ task.description }}
-              </p>
+              <div v-if="task.description" class="task-item__description-wrap">
+                <button
+                  v-if="isDescriptionLong(task.description)"
+                  type="button"
+                  class="task-item__description-toggle"
+                  :title="expandedDescriptionIds.has(task.id) ? '접기' : '펼치기'"
+                  @click.stop="toggleDescriptionExpand(task.id)"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="task-item__description-arrow"
+                    :class="{ 'task-item__description-arrow--expanded': expandedDescriptionIds.has(task.id) }"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <p
+                  class="task-item__description"
+                  :class="{ 'task-item__description--collapsed': isDescriptionLong(task.description) && !expandedDescriptionIds.has(task.id) }"
+                >
+                  {{ getDisplayDescription(task.description, task.id) }}
+                </p>
+              </div>
               <div class="task-item__dates">
                 <div v-if="task.startDate" class="task-item__date-info" :class="{ 'task-item__date-info--not-started': !hasStarted(task.startDate) }">
                   <svg
@@ -320,7 +372,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
 import { calculateScores, getQuadrant as getQuadrantFromScores } from '@/utils/score-calculator'
 import { formatDeadline, isOverdue, getTimeRemaining, formatStartDate, hasStarted, getStartStatus, getTaskDuration } from '@/utils/date-formatter'
@@ -368,6 +420,75 @@ const editFormData = ref<{
     importance: 3,
     urgency: 3,
   },
+})
+
+// 공백 포함 50자 제한. 줄바꿈은 1자로 세지 않고, 한 줄 글자 수 = width / (fontSize/8) 로 계산
+const DESCRIPTION_MAX_LENGTH = 50
+const expandedDescriptionIds = ref<Set<string>>(new Set())
+const charsPerLine = ref(40)
+const descriptionWrapRef = ref<HTMLElement | null>(null)
+
+function measureCharsPerLine() {
+  const el = descriptionWrapRef.value
+  if (!el) return
+  const width = el.offsetWidth
+  const descEl = el.querySelector('.task-item__description')
+  const style = descEl ? getComputedStyle(descEl) : getComputedStyle(el)
+  const fontSize = parseFloat(style.fontSize) || 14
+  const value = Math.floor((width * 8) / fontSize)
+  charsPerLine.value = Math.max(1, value)
+}
+
+function getEffectiveLength(text: string): number {
+  const perLine = charsPerLine.value
+  let len = 0
+  for (const c of text) {
+    if (c === '\n' || c === '\r') len += perLine
+    else len += 1
+  }
+  return len
+}
+
+function isDescriptionLong(description: string | undefined): boolean {
+  return !!description && getEffectiveLength(description) > DESCRIPTION_MAX_LENGTH
+}
+
+function getDisplayDescription(description: string, taskId: string): string {
+  if (!description) return ''
+  if (!isDescriptionLong(description)) return description
+  if (expandedDescriptionIds.value.has(taskId)) return description
+  const perLine = charsPerLine.value
+  let effective = 0
+  let i = 0
+  for (; i < description.length; i++) {
+    const c = description[i]
+    const add = c === '\n' || c === '\r' ? perLine : 1
+    if (effective + add > DESCRIPTION_MAX_LENGTH) break
+    effective += add
+  }
+  return description.slice(0, i) + '...'
+}
+
+function toggleDescriptionExpand(taskId: string) {
+  const next = new Set(expandedDescriptionIds.value)
+  if (next.has(taskId)) {
+    next.delete(taskId)
+  } else {
+    next.add(taskId)
+  }
+  expandedDescriptionIds.value = next
+}
+
+function setDescriptionWrapRef(el: unknown) {
+  descriptionWrapRef.value = el as HTMLElement | null
+}
+
+watch(descriptionWrapRef, (el) => {
+  if (el) nextTick(measureCharsPerLine)
+}, { flush: 'post' })
+
+onMounted(() => {
+  nextTick(measureCharsPerLine)
 })
 
 // 중요도와 시급성을 계산
@@ -614,12 +735,48 @@ function handleDeleteClick(taskId: string) {
   }
 }
 
+.task-item__description-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.task-item__description-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: $spacing-xs;
+  background: transparent;
+  border: none;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  color: $color-gray-500;
+  transition: color 0.2s, background 0.2s;
+
+  &:hover {
+    color: $color-primary;
+    background: $color-gray-100;
+  }
+}
+
+.task-item__description-arrow {
+  width: 16px;
+  height: 16px;
+  display: block;
+  transition: transform 0.2s;
+
+  &--expanded {
+    transform: rotate(180deg);
+  }
+}
+
 .task-item__description {
   font-size: 0.875rem;
   color: $color-gray-600;
   line-height: 1.5;
   word-break: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
+  padding-right: 28px;
 }
 
 .task-item__dates {
