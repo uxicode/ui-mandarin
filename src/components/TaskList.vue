@@ -543,6 +543,8 @@ function handleDeleteClick(taskId: string) {
   @include card;
   border: 2px solid transparent;
   transition: all 0.3s ease;
+  min-width: 0;
+  overflow: hidden;
 
   &--selected {
     border-color: $color-primary;
@@ -564,6 +566,7 @@ function handleDeleteClick(taskId: string) {
   display: flex;
   gap: $spacing-md;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .task-item__checkbox-wrapper {
@@ -585,9 +588,10 @@ function handleDeleteClick(taskId: string) {
 
 .task-item__content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  // gap: $spacing-sm;
+  gap: $spacing-sm;
   cursor: pointer;
   transition: transform 0.2s;
 
@@ -601,6 +605,8 @@ function handleDeleteClick(taskId: string) {
   font-weight: 600;
   color: $color-gray-900;
   transition: all 0.2s;
+  word-break: break-word;
+  overflow-wrap: break-word;
 
   &--completed {
     text-decoration: line-through;
@@ -612,12 +618,15 @@ function handleDeleteClick(taskId: string) {
   font-size: 0.875rem;
   color: $color-gray-600;
   line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .task-item__dates {
   display: flex;
   flex-direction: column;
   gap: $spacing-xs;
+  min-width: 0;
 }
 
 .task-item__date-info {
@@ -720,6 +729,7 @@ function handleDeleteClick(taskId: string) {
   display: flex;
   gap: $spacing-md;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .task-item__score {
