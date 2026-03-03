@@ -587,7 +587,7 @@ function handleDeleteClick(taskId: string) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: $spacing-sm;
+  // gap: $spacing-sm;
   cursor: pointer;
   transition: transform 0.2s;
 

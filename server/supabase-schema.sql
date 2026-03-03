@@ -1,4 +1,4 @@
--- tasks 테이블 생성
+-- tasks 테이블 생성 IF NOT EXISTS -- 중복 생성 방지를 위해 추가
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
