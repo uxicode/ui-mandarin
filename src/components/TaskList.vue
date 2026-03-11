@@ -677,23 +677,26 @@ function handleDeleteClick(taskId: string) {
     box-shadow: $shadow-lg;
   }
 
+  .task-item__view{
+    display: flex;
+    gap: $spacing-md;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
   &--completed {
     opacity: 0.7;
     background: $color-gray-50;
+    padding: $spacing-xs $spacing-md;
+
+    .task-item__view{
+      align-items: center;
+    }
+    
+    .task-item__description-wrap, .task-item__dates, .task-item__scores {
+      display: none;
+    }
   }
-}
-
-.task-item__view {
-  display: flex;
-  gap: $spacing-md;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.task-item__checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  padding-top: 2px;
 }
 
 .task-item__checkbox {

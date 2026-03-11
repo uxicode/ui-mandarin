@@ -18,9 +18,15 @@ export const useTaskStore = defineStore('task', () => {
     return tasks.value.filter(task => !task.completed)
   })
 
-  // 완료된 업무만
+  // 완료된 업무만 (완료 시각 기준 최신순)
   const completedTasks = computed<Task[]>(() => {
-    return tasks.value.filter(task => task.completed)
+    return tasks.value
+      .filter(task => task.completed)
+      .sort((a, b) => {
+        const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+        const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+        return bt - at
+      })
   })
 
   async function fetchTasks() {

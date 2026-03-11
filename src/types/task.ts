@@ -11,6 +11,7 @@ export interface Task {
   completed: boolean
   startDate?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
   deadline?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
+  updatedAt?: string // ISO 8601, 완료일 정렬 등에 사용
 }
 
 export interface ComputedScores {

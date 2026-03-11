@@ -10,7 +10,7 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
-const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173']
+const DEV_ORIGINS = ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:5174']
 const PROD_ORIGINS = [
   process.env.PRODUCTION_URL,
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(o => o.trim()) : []),

@@ -286,7 +286,7 @@ onUnmounted(() => {
   margin: 0 auto;
   background: $color-white;
   border-radius: $radius-lg;
-  overflow: hidden;
+  // overflow: hidden;
   box-shadow: $shadow-md;
 }
 
@@ -345,23 +345,24 @@ onUnmounted(() => {
     box-shadow: $shadow-lg;
     transform: translate(-50%, -50%) scale(1.05);
     z-index: 10;
-  }
-
-  &--completed {
-    opacity: 0.5;
-    background: $color-gray-100;
-    border-style: dashed;
-
-    &:hover {
-      opacity: 0.7;
+    .priority-matrix__task-card-title, .priority-matrix__task-card-score {
+      color: #fff !important;
     }
   }
 
+  &--completed {
+    // opacity: 0.5;
+    background: $color-gray-100;
+    border-style: dashed;
+
+  }
+
   &--a {
+  
     border-color: $color-danger;
 
     &:hover {
-      background: rgba($color-danger, 0.05);
+      background: rgba($color-danger, 1);
     }
   }
 
@@ -369,7 +370,7 @@ onUnmounted(() => {
     border-color: $color-success;
 
     &:hover {
-      background: rgba($color-success, 0.05);
+      background: rgba($color-success, 1);
     }
   }
 
@@ -377,7 +378,7 @@ onUnmounted(() => {
     border-color: $color-warning;
 
     &:hover {
-      background: rgba($color-warning, 0.05);
+      background: rgba($color-warning, 1);
     }
   }
 
@@ -385,9 +386,10 @@ onUnmounted(() => {
     border-color: $color-gray-400;
 
     &:hover {
-      background: rgba($color-gray-400, 0.05);
+      background: rgba($color-gray-400, 1);
     }
   }
+
 }
 
 .priority-matrix__task-card-content {
@@ -422,5 +424,6 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: $color-gray-600;
 }
+
 </style>
 
