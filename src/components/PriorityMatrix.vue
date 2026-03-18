@@ -109,6 +109,14 @@
         </text>
       </svg>
 
+      <!-- Backdrop: fan-out 영역 밖으로 나가면 collapse -->
+      <div
+        v-if="backdropStyle"
+        class="priority-matrix__cluster-backdrop"
+        :style="backdropStyle"
+        @mouseleave="hoveredClusterIndex = null"
+      />
+
       <!-- Task cards positioned absolutely -->
       <div
         v-for="task in tasksWithComputed"
@@ -116,12 +124,15 @@
         class="priority-matrix__task-card"
         :class="[
           `priority-matrix__task-card--${task.quadrant.toLowerCase()}`,
-          { 'priority-matrix__task-card--completed': task.completed }
+          {
+            'priority-matrix__task-card--completed': task.completed,
+            'priority-matrix__task-card--selected': props.selectedTaskId === task.id
+          }
         ]"
         :style="getTaskCardStyle(task)"
         @click="handleTaskClick(task.id)"
-        @mouseenter="hoveredTaskId = task.id"
-        @mouseleave="hoveredTaskId = null"
+        @mouseenter="onCardMouseEnter(task.id)"
+        @mouseleave="onCardMouseLeave"
       >
         <div class="priority-matrix__task-card-content">
           <h3 
@@ -131,7 +142,7 @@
             {{ task.title }}
           </h3>
           <div
-            v-if="hoveredTaskId === task.id"
+            v-if="hoveredTaskId === task.id || props.selectedTaskId === task.id"
             class="priority-matrix__task-card-scores"
           >
             <div class="priority-matrix__task-card-score">
@@ -158,6 +169,7 @@ interface Props {
 
 interface Emits {
   (e: 'select', taskId: string): void
+  (e: 'clearSelection'): void
 }
 
 const props = defineProps<Props>()
@@ -179,11 +191,69 @@ const scoreRange = 2 // -2 to +2
 const paddingPx = 20 // 20px padding from edges
 const cardMaxWidth = 180 // max-width of task card
 const cardMaxHeight = 100 // estimated max height of task card
+const CLUSTER_GRID_SIZE = 20 // same (rx,ry) => same cluster
+const FAN_OUT_RADIUS = 70 // px
+
+const hoveredClusterIndex = ref<number | null>(null)
 
 function normalizeScore(score: number): number {
   // -2~+2를 0~1 범위로 정규화
   return (score + scoreRange) / (scoreRange * 2)
 }
+
+/** 픽셀 좌표 (x, y) 반환. 컨테이너 크기 0이면 null */
+function getTaskPixelPosition(task: TaskWithComputed): { x: number; y: number } | null {
+  if (containerWidth.value === 0 || containerHeight.value === 0) return null
+  const normalizedImportance = normalizeScore(task.computedScores.importanceScore)
+  const normalizedUrgency = normalizeScore(task.computedScores.urgencyScore)
+  const cardHalfWidth = cardMaxWidth / 2
+  const cardHalfHeight = cardMaxHeight / 2
+  const availableWidth = containerWidth.value - (paddingPx + cardHalfWidth) * 2
+  const availableHeight = containerHeight.value - (paddingPx + cardHalfHeight) * 2
+  const x = paddingPx + cardHalfWidth + normalizedImportance * availableWidth
+  const y = paddingPx + cardHalfHeight + (1 - normalizedUrgency) * availableHeight
+  return { x, y }
+}
+
+interface Cluster {
+  centerX: number
+  centerY: number
+  tasks: TaskWithComputed[]
+}
+
+const clusters = computed<Cluster[]>(() => {
+  const tasks = tasksWithComputed.value
+  if (containerWidth.value === 0 || containerHeight.value === 0) return []
+  const gridToTasks = new Map<string, { x: number; y: number; task: TaskWithComputed }[]>()
+  for (const task of tasks) {
+    const pos = getTaskPixelPosition(task)
+    if (!pos) continue
+    const rx = Math.round(pos.x / CLUSTER_GRID_SIZE) * CLUSTER_GRID_SIZE
+    const ry = Math.round(pos.y / CLUSTER_GRID_SIZE) * CLUSTER_GRID_SIZE
+    const key = `${rx},${ry}`
+    const list = gridToTasks.get(key) ?? []
+    list.push({ x: pos.x, y: pos.y, task })
+    gridToTasks.set(key, list)
+  }
+  const result: Cluster[] = []
+  for (const list of gridToTasks.values()) {
+    const centerX = list.reduce((s, p) => s + p.x, 0) / list.length
+    const centerY = list.reduce((s, p) => s + p.y, 0) / list.length
+    result.push({ centerX, centerY, tasks: list.map((p) => p.task) })
+  }
+  return result
+})
+
+/** taskId -> { clusterIndex, indexInCluster } */
+const taskToCluster = computed(() => {
+  const map = new Map<string, { clusterIndex: number; indexInCluster: number }>()
+  clusters.value.forEach((cluster, ci) => {
+    cluster.tasks.forEach((task, ii) => {
+      map.set(task.id, { clusterIndex: ci, indexInCluster: ii })
+    })
+  })
+  return map
+})
 
 function updateContainerSize() {
   if (containerRef.value) {
@@ -191,51 +261,120 @@ function updateContainerSize() {
     containerHeight.value = containerRef.value.clientHeight
   }
 }
+// getTaskCardStyle 함수 내부의 주요 계산마다 주석 추가
 
-function getTaskCardStyle(task: TaskWithComputed) {
+function getTaskCardStyle(task: TaskWithComputed): Record<string, string | number> {
+  // 중요도와 시급성 점수를 추출
   const { importanceScore, urgencyScore } = task.computedScores
-
-  // Normalize scores to 0-1 range
+  // 중요도, 시급성 0~1로 정규화
   const normalizedImportance = normalizeScore(importanceScore)
   const normalizedUrgency = normalizeScore(urgencyScore)
 
-  // 20px 여백을 포함하여 위치 계산
-  // X: left to right (importance: low to high, 0 = left, 1 = right)
-  // Y: top to bottom (urgency: high at top, low at bottom, 0 = top, 1 = bottom)
+  // 컨테이너 크기를 아직 측정하지 못한 경우, 퍼센트로 위치 계산
   if (containerWidth.value === 0 || containerHeight.value === 0) {
-    // 컨테이너 크기가 없으면 백분율 기준으로 위치 계산
+    const xPercent = normalizedImportance * 100 // 좌측-우측 간 상대적 위치 (%)
+    const yPercent = (1 - normalizedUrgency) * 100 // 상단-하단 간 상대적 위치 (%)
+    return {
+      left: `${xPercent}%`,
+      top: `${yPercent}%`,
+      zIndex: (props.selectedTaskId === task.id || hoveredTaskId.value === task.id) ? 11 : task.completed ? 0 : 1,
+    }
+  }
+
+  // 클러스터 정보 및 현재 마우스 hover 상태 등 구함
+  const info = taskToCluster.value.get(task.id)
+  const hovered = hoveredClusterIndex.value
+  // 현재 hover된 클러스터 객체
+  const cluster = info !== undefined && hovered !== null ? clusters.value[hovered] : null
+  // 해당 태스크가 hover된 클러스터에 포함되어 있고, 군집이 2개 이상일 때인지
+  const isHoveredCluster = info !== undefined && hovered === info.clusterIndex && cluster && cluster.tasks.length > 1
+
+  // 선택된 카드면 zIndex 최고, hover 시 10, 완료된 카드는 비활성 시 진행중 카드 아래에 배치
+  const isSelected = props.selectedTaskId === task.id
+  const isHovered = hoveredTaskId.value === task.id
+  const isInHoveredCluster = info !== undefined && hovered === info.clusterIndex
+  // 직접 hover된 카드는 12, 선택/클러스터 내 카드는 11, 진행중 기본 1, 완료 비활성 0
+  const baseZ = isHovered ? 12 : (isSelected || isInHoveredCluster) ? 11 : task.completed ? 0 : 1
+
+  if (isHoveredCluster && cluster) {
+    // fan-out 효과: 원형으로 분산
+    const n = cluster.tasks.length // 군집 내 태스크 개수
+    const i = info!.indexInCluster // 군집 내 인덱스
+    // [0, 2π) 각도로 분배
+    const theta = (2 * Math.PI * i) / n + 45;
+    const cx = cluster.centerX // 군집 중심 x좌표
+    const cy = cluster.centerY // 군집 중심 y좌표
+    // fan-out 반지름을 기준으로 원형 위치 산출
+    const left = cx + FAN_OUT_RADIUS * Math.cos(theta)
+    const top = cy + FAN_OUT_RADIUS * Math.sin(theta)
+    return {
+      left: `${left}px`,
+      top: `${top}px`,
+      zIndex: baseZ,
+    }
+  }
+
+  // 일반 배치(군집 정보 없음)은 실제 픽셀 좌표 반환
+  const pos = getTaskPixelPosition(task)
+  if (!pos) {
+    // 예외적으로 좌표 계산 불가 시 %로 대체
     const xPercent = normalizedImportance * 100
     const yPercent = (1 - normalizedUrgency) * 100
     return {
       left: `${xPercent}%`,
       top: `${yPercent}%`,
-      transform: 'translate(-50%, -50%)',
+      zIndex: baseZ,
     }
   }
 
-  // 여백(padding)을 포함하여 픽셀 기준으로 위치 계산
-  // transform이 카드의 중앙을 기준으로 적용되기 때문에 카드 크기를 고려함
-  const cardHalfWidth = cardMaxWidth / 2
-  const cardHalfHeight = cardMaxHeight / 2
-  
-  // 카드 크기를 고려한 사용 가능한 영역
-  const availableWidth = containerWidth.value - (paddingPx + cardHalfWidth) * 2
-  const availableHeight = containerHeight.value - (paddingPx + cardHalfHeight) * 2
-  
-  // 카드가 가능한 영역 내에 위치하도록 위치 계산
-  const x = paddingPx + cardHalfWidth + normalizedImportance * availableWidth
-  const y = paddingPx + cardHalfHeight + (1 - normalizedUrgency) * availableHeight
-
+  // 계산된 픽셀 좌표 기준 배치
   return {
-    left: `${x}px`,
-    top: `${y}px`,
-    transform: 'translate(-50%, -50%)',
+    left: `${pos.x}px`,
+    top: `${pos.y}px`,
+    zIndex: baseZ,
   }
 }
 
 function handleTaskClick(taskId: string) {
   emit('select', taskId)
 }
+
+function onCardMouseEnter(taskId: string) {
+  emit('clearSelection')
+  const info = taskToCluster.value.get(taskId)
+  if (info !== undefined) hoveredClusterIndex.value = info.clusterIndex
+  hoveredTaskId.value = taskId
+}
+
+function onCardMouseLeave() {
+  hoveredTaskId.value = null
+  // 단일 카드(백드롭 없음)는 직접 클러스터 hover도 해제
+  if (hoveredClusterIndex.value !== null) {
+    const cluster = clusters.value[hoveredClusterIndex.value]
+    if (!cluster || cluster.tasks.length <= 1) {
+      hoveredClusterIndex.value = null
+    }
+  }
+}
+
+/** Fan-out 영역 백드롭 스타일 (마우스가 영역 밖으로 나가면 collapse) */
+const backdropStyle = computed<Record<string, string | number> | null>(() => {
+  if (hoveredClusterIndex.value === null) return null
+  const cluster = clusters.value[hoveredClusterIndex.value]
+  if (!cluster || cluster.tasks.length <= 1) return null
+  const half = FAN_OUT_RADIUS + Math.max(cardMaxWidth, cardMaxHeight) / 2
+  const left = cluster.centerX - half
+  const top = cluster.centerY - half
+  const size = half * 2
+  return {
+    position: 'absolute',
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${size}px`,
+    height: `${size}px`,
+    zIndex: 8,
+  }
+})
 
 let resizeObserver: ResizeObserver | null = null
 
@@ -329,6 +468,11 @@ onUnmounted(() => {
   }
 }
 
+.priority-matrix__cluster-backdrop {
+  pointer-events: auto;
+  background: transparent;
+}
+
 .priority-matrix__task-card {
   position: absolute;
   min-width: 120px;
@@ -340,8 +484,10 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.2s;
   border: 2px solid transparent;
+  transform: translate(-50%, -50%);
 
-  &:hover {
+  &:hover,
+  &--selected {
     box-shadow: $shadow-lg;
     transform: translate(-50%, -50%) scale(1.05);
     z-index: 10;
@@ -358,10 +504,10 @@ onUnmounted(() => {
   }
 
   &--a {
-  
     border-color: $color-danger;
 
-    &:hover {
+    &:hover,
+    &.priority-matrix__task-card--selected {
       background: rgba($color-danger, 1);
     }
   }
@@ -369,7 +515,8 @@ onUnmounted(() => {
   &--b {
     border-color: $color-success;
 
-    &:hover {
+    &:hover,
+    &.priority-matrix__task-card--selected {
       background: rgba($color-success, 1);
     }
   }
@@ -377,7 +524,8 @@ onUnmounted(() => {
   &--c {
     border-color: $color-warning;
 
-    &:hover {
+    &:hover,
+    &.priority-matrix__task-card--selected {
       background: rgba($color-warning, 1);
     }
   }
@@ -385,7 +533,8 @@ onUnmounted(() => {
   &--d {
     border-color: $color-gray-400;
 
-    &:hover {
+    &:hover,
+    &.priority-matrix__task-card--selected {
       background: rgba($color-gray-400, 1);
     }
   }
@@ -407,7 +556,7 @@ onUnmounted(() => {
 
   &--completed {
     text-decoration: line-through;
-    color: $color-gray-500;
+    color: $color-gray-300;
   }
 }
 

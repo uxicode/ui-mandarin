@@ -115,7 +115,7 @@
                     <path d="M12 6v6l4 2" />
                   </svg>
                   <span>{{ formatDeadline(task.deadline) }}</span>
-                  <span class="task-item__date-status text-white">{{ getTimeRemaining(task.deadline) }}</span>
+                  <span class="task-item__date-status">{{ getTimeRemaining(task.deadline) }}</span>
                 </div>
                 <div v-if="task.startDate && task.deadline" class="task-item__duration">
                   <span>기간: {{ getTaskDuration(task.startDate, task.deadline) }}</span>
@@ -330,7 +330,7 @@
                     <path d="M12 6v6l4 2" />
                   </svg>
                   <span>{{ formatDeadline(task.deadline) }}</span>
-                  <span class="task-item__date-status">{{ getTimeRemaining(task.deadline) }}</span>
+                  <span class="task-item__date-status text-white">{{ getTimeRemaining(task.deadline) }}</span>
                 </div>
                 <div v-if="task.startDate && task.deadline" class="task-item__duration">
                   <span>기간: {{ getTaskDuration(task.startDate, task.deadline) }}</span>
@@ -637,6 +637,8 @@ function handleDeleteClick(taskId: string) {
 
 .task-list__section {
   margin-bottom: $spacing-xl;
+  height: 510px;
+  overflow-y: auto;
 
   &--completed {
     margin-top: $spacing-xl;
@@ -735,6 +737,7 @@ function handleDeleteClick(taskId: string) {
   &--completed {
     text-decoration: line-through;
     color: $color-gray-500;
+    font-size: 0.75rem;
   }
 }
 
@@ -828,16 +831,16 @@ function handleDeleteClick(taskId: string) {
   font-weight: 600;
   color: $color-primary;
 
+  &.text-white {
+    color: #fff;
+  }
+
   .task-item__date-info--overdue & {
     color: $color-danger;
   }
 
   .task-item__date-info--not-started & {
     color: $color-warning;
-  }
-
-  &.text-white {
-    color: #fff;
   }
 }
 

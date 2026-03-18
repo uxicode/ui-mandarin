@@ -15,7 +15,11 @@
       </div>
 
       <div class="app__content">
-        <PriorityMatrix :selected-task-id="selectedTaskId" @select="handleSelect" />
+        <PriorityMatrix
+          :selected-task-id="selectedTaskId"
+          @select="handleSelect"
+          @clear-selection="selectedTaskId = undefined"
+        />
       </div>
     </main>
   </div>

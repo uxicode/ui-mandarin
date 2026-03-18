@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  importance INTEGER NOT NULL CHECK (importance >= 1 AND importance <= 5),
-  urgency INTEGER NOT NULL CHECK (urgency >= 1 AND urgency <= 5),
+  importance NUMERIC(3,1) NOT NULL CHECK (importance >= 1 AND importance <= 5),
+  urgency NUMERIC(3,1) NOT NULL CHECK (urgency >= 1 AND urgency <= 5),
   start_date TIMESTAMPTZ,
   deadline TIMESTAMPTZ,
   completed BOOLEAN DEFAULT FALSE,
@@ -40,3 +40,15 @@ CREATE POLICY "Allow all operations" ON tasks
   FOR ALL
   USING (true)
   WITH CHECK (true);
+
+-- [마이그레이션] 기존 테이블이 있는 경우, 아래 SQL을 Supabase SQL Editor에서 실행하여
+-- importance/urgency 컬럼 타입을 INTEGER → NUMERIC(3,1)으로 변경하세요.
+--
+ALTER TABLE public.tasks
+  ALTER COLUMN importance TYPE NUMERIC(3,1),
+  ALTER COLUMN urgency TYPE NUMERIC(3,1);
+--
+-- DROP INDEX IF EXISTS idx_tasks_completed;
+-- DROP INDEX IF EXISTS idx_tasks_created_at;
+-- CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+-- CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
