@@ -1,62 +1,53 @@
 <template>
   <div class="app">
     <header class="app__header">
-      <h1 class="app__title">Mandarin Priority</h1>
-      <p class="app__subtitle">감정이 아닌 수치로 업무 우선순위를 시각화</p>
+      <div class="app__header-row">
+        <div class="app__brand">
+          <RouterLink to="/" class="app__title-link">
+            <h1 class="app__title">Mandarin Priority</h1>
+          </RouterLink>
+          <p class="app__subtitle">감정이 아닌 수치로 업무 우선순위를 시각화</p>
+        </div>
+        <nav class="app__nav">
+          <template v-if="authStore.isAuthenticated">
+            <span class="app__nav-user">{{ displayLabel }}</span>
+            <RouterLink to="/profile" class="app__nav-link">프로필</RouterLink>
+            <button type="button" class="app__nav-button" @click="onLogout">로그아웃</button>
+          </template>
+          <template v-else>
+            <span class="app__guest-badge">게스트 · 로컬 저장</span>
+            <RouterLink to="/login" class="app__nav-link">로그인</RouterLink>
+            <RouterLink to="/signup" class="app__nav-link app__nav-link--primary">회원가입</RouterLink>
+          </template>
+        </nav>
+      </div>
     </header>
 
-    <main class="app__main">
-      <div class="app__sidebar">
-        <TaskList
-          :selected-task-id="selectedTaskId"
-          @select="handleSelect"
-          @delete="handleDelete"
-        />
-      </div>
-
-      <div class="app__content">
-        <PriorityMatrix
-          :selected-task-id="selectedTaskId"
-          @select="handleSelect"
-          @clear-selection="selectedTaskId = undefined"
-        />
-      </div>
-    </main>
+    <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useTaskStore } from '@/stores/task-store'
-import TaskList from '@/components/TaskList.vue'
-import PriorityMatrix from '@/components/PriorityMatrix.vue'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth-store'
 
-const taskStore = useTaskStore()
+const router = useRouter()
+const authStore = useAuthStore()
 
-const selectedTaskId = ref<string | undefined>()
-
-onMounted(async () => {
-  try {
-    await taskStore.fetchTasks()
-  } catch (error) {
-    console.error('업무 목록 불러오기 실패:', error)
-  }
+const displayLabel = computed(() => {
+  const u = authStore.user
+  if (!u) return ''
+  const meta = u.user_metadata as { display_name?: string } | undefined
+  return meta?.display_name || u.email || ''
 })
 
-// 업무 선택
-function handleSelect(taskId: string) {
-  selectedTaskId.value = taskId
-}
-
-// 업무 삭제
-async function handleDelete(taskId: string) {
+async function onLogout() {
   try {
-    await taskStore.deleteTask(taskId)
-    if (selectedTaskId.value === taskId) {
-      selectedTaskId.value = undefined
-    }
-  } catch (error) {
-    console.error('업무 삭제 실패:', error)
+    await authStore.signOut()
+    await router.push('/')
+  } catch (e) {
+    console.error(e)
   }
 }
 </script>
@@ -78,6 +69,23 @@ async function handleDelete(taskId: string) {
   box-shadow: $shadow-sm;
 }
 
+.app__header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-lg;
+  flex-wrap: wrap;
+}
+
+.app__brand {
+  min-width: 0;
+}
+
+.app__title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
 .app__title {
   font-size: 2rem;
   font-weight: 700;
@@ -90,40 +98,56 @@ async function handleDelete(taskId: string) {
   color: $color-gray-600;
 }
 
-.app__main {
-  flex: 1;
+.app__nav {
   display: flex;
-  gap: $spacing-xl;
-  padding: $spacing-xl;
+  align-items: center;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.app__nav-user {
+  font-size: 0.875rem;
+  color: $color-gray-700;
+  max-width: 200px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  @include mobile {
-    flex-direction: column;
-    padding: $spacing-md;
-    gap: $spacing-md;
+.app__guest-badge {
+  font-size: 0.75rem;
+  color: $color-gray-600;
+  background: $color-gray-100;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-md;
+}
+
+.app__nav-link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $color-primary;
+  text-decoration: none;
+
+  &--primary {
+    padding: $spacing-xs $spacing-sm;
+    background: $color-primary;
+    color: $color-white;
+    border-radius: $radius-md;
   }
 }
 
-.app__sidebar {
-  width: 400px;
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-lg;
-  overflow-y: auto;
+.app__nav-button {
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: $spacing-xs $spacing-sm;
+  background: transparent;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  cursor: pointer;
+  color: $color-gray-700;
 
-  @include mobile {
-    width: 100%;
-    max-height: 50vh;
-  }
-}
-
-.app__content {
-  flex: 1;
-  min-height: 0;
-
-  @include mobile {
-    min-height: 50vh;
+  &:hover {
+    background: $color-gray-50;
   }
 }
 </style>
-

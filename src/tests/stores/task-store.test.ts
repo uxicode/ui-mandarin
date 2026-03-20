@@ -31,7 +31,7 @@ describe('task-store', () => {
   })
 
   describe('addTask', () => {
-    it('should add a new task', () => {
+    it('should add a new task', async () => {
       const store = useTaskStore()
       const taskData = {
         title: 'Test Task',
@@ -43,7 +43,7 @@ describe('task-store', () => {
         completed: false,
       }
 
-      store.addTask(taskData)
+      await store.addTask(taskData)
 
       expect(store.tasks.length).toBe(1)
       expect(store.tasks[0].title).toBe('Test Task')
@@ -54,16 +54,16 @@ describe('task-store', () => {
       expect(store.tasks[0].id).toBeDefined()
     })
 
-    it('should generate unique IDs for multiple tasks', () => {
+    it('should generate unique IDs for multiple tasks', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Task 1',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
-      store.addTask({
+      await store.addTask({
         title: 'Task 2',
         scores: { importance: 4, urgency: 4 },
         completed: false,
@@ -73,10 +73,10 @@ describe('task-store', () => {
       expect(store.tasks[0].id).not.toBe(store.tasks[1].id)
     })
 
-    it('should add task with optional fields', () => {
+    it('should add task with optional fields', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Task with dates',
         scores: { importance: 5, urgency: 5 },
         completed: false,
@@ -90,10 +90,10 @@ describe('task-store', () => {
   })
 
   describe('updateTask', () => {
-    it('should update existing task', () => {
+    it('should update existing task', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Original Title',
         scores: { importance: 3, urgency: 3 },
         completed: false,
@@ -101,7 +101,7 @@ describe('task-store', () => {
 
       const taskId = store.tasks[0].id
 
-      store.updateTask(taskId, {
+      await store.updateTask(taskId, {
         title: 'Updated Title',
         scores: { importance: 5, urgency: 4 },
       })
@@ -111,39 +111,41 @@ describe('task-store', () => {
       expect(store.tasks[0].scores.urgency).toBe(4)
     })
 
-    it('should not affect other tasks when updating', () => {
+    it('should not affect other tasks when updating', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Task 1',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
-      store.addTask({
+      await store.addTask({
         title: 'Task 2',
         scores: { importance: 4, urgency: 4 },
         completed: false,
       })
 
       const taskId = store.tasks[0].id
-      store.updateTask(taskId, { title: 'Updated Task 1' })
+      await store.updateTask(taskId, { title: 'Updated Task 1' })
 
       expect(store.tasks[0].title).toBe('Updated Task 1')
       expect(store.tasks[1].title).toBe('Task 2')
     })
 
-    it('should do nothing for non-existent task ID', () => {
+    it('should reject for non-existent task ID', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Test Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
       const originalLength = store.tasks.length
-      store.updateTask('non-existent-id', { title: 'Updated' })
+      await expect(
+        store.updateTask('non-existent-id', { title: 'Updated' })
+      ).rejects.toThrow()
 
       expect(store.tasks.length).toBe(originalLength)
       expect(store.tasks[0].title).toBe('Test Task')
@@ -151,10 +153,10 @@ describe('task-store', () => {
   })
 
   describe('toggleTaskComplete', () => {
-    it('should toggle task completion status', () => {
+    it('should toggle task completion status', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Test Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
@@ -163,32 +165,32 @@ describe('task-store', () => {
       const taskId = store.tasks[0].id
       expect(store.tasks[0].completed).toBe(false)
 
-      store.toggleTaskComplete(taskId)
+      await store.toggleTaskComplete(taskId)
       expect(store.tasks[0].completed).toBe(true)
 
-      store.toggleTaskComplete(taskId)
+      await store.toggleTaskComplete(taskId)
       expect(store.tasks[0].completed).toBe(false)
     })
 
-    it('should do nothing for non-existent task ID', () => {
+    it('should reject for non-existent task ID', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Test Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
-      store.toggleTaskComplete('non-existent-id')
+      await expect(store.toggleTaskComplete('non-existent-id')).rejects.toThrow()
       expect(store.tasks[0].completed).toBe(false)
     })
   })
 
   describe('deleteTask', () => {
-    it('should delete task by ID', () => {
+    it('should delete task by ID', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Task to delete',
         scores: { importance: 3, urgency: 3 },
         completed: false,
@@ -197,53 +199,53 @@ describe('task-store', () => {
       const taskId = store.tasks[0].id
       expect(store.tasks.length).toBe(1)
 
-      store.deleteTask(taskId)
+      await store.deleteTask(taskId)
       expect(store.tasks.length).toBe(0)
     })
 
-    it('should only delete the specified task', () => {
+    it('should only delete the specified task', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Task 1',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
-      store.addTask({
+      await store.addTask({
         title: 'Task 2',
         scores: { importance: 4, urgency: 4 },
         completed: false,
       })
 
       const taskId = store.tasks[0].id
-      store.deleteTask(taskId)
+      await store.deleteTask(taskId)
 
       expect(store.tasks.length).toBe(1)
       expect(store.tasks[0].title).toBe('Task 2')
     })
 
-    it('should do nothing for non-existent task ID', () => {
+    it('should do nothing for non-existent task ID', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Test Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
       const originalLength = store.tasks.length
-      store.deleteTask('non-existent-id')
+      await store.deleteTask('non-existent-id')
 
       expect(store.tasks.length).toBe(originalLength)
     })
   })
 
   describe('getTaskById', () => {
-    it('should return task by ID', () => {
+    it('should return task by ID', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Test Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
@@ -264,19 +266,19 @@ describe('task-store', () => {
   })
 
   describe('computed properties', () => {
-    it('should filter incomplete tasks', () => {
+    it('should filter incomplete tasks', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Incomplete Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
       const taskId = store.tasks[0].id
-      store.updateTask(taskId, { completed: true })
+      await store.updateTask(taskId, { completed: true })
 
-      store.addTask({
+      await store.addTask({
         title: 'Complete Task',
         scores: { importance: 4, urgency: 4 },
         completed: false,
@@ -286,32 +288,32 @@ describe('task-store', () => {
       expect(store.incompleteTasks[0].title).toBe('Complete Task')
     })
 
-    it('should filter completed tasks', () => {
+    it('should filter completed tasks', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'Incomplete Task',
         scores: { importance: 3, urgency: 3 },
         completed: false,
       })
 
-      store.addTask({
+      await store.addTask({
         title: 'Will be completed Task',
         scores: { importance: 4, urgency: 4 },
         completed: false,
       })
 
       const taskId = store.tasks[1].id
-      store.updateTask(taskId, { completed: true })
+      await store.updateTask(taskId, { completed: true })
 
       expect(store.completedTasks.length).toBe(1)
       expect(store.completedTasks[0].title).toBe('Will be completed Task')
     })
 
-    it('should compute tasks with scores and quadrants', () => {
+    it('should compute tasks with scores and quadrants', async () => {
       const store = useTaskStore()
       
-      store.addTask({
+      await store.addTask({
         title: 'High Priority Task',
         scores: { importance: 5, urgency: 5 },
         completed: false,

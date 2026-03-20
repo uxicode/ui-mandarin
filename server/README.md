@@ -27,9 +27,16 @@ FRONTEND_URL=http://localhost:5173
 ## Supabase 설정
 
 1. [Supabase](https://supabase.com)에서 새 프로젝트 생성
-2. Supabase 대시보드에 들어가서: 왼쪽 메뉴에서 SQL Editor 를 선택하고`server/supabase-schema.sql` 파일 내용을 복사해 붙여넣은 뒤 
-Run 버튼으로 실행하면 해당 프로젝트의 PostgreSQL DB에 tasks 테이블 등이 생성.
-3. 프로젝트 설정에서 API URL과 anon key를 복사하여 `.env` 파일에 설정
+2. **신규 DB**: SQL Editor에서 `server/supabase-schema.sql` 전체를 실행합니다. (`tasks.user_id`, RLS, Auth 연동 포함)
+3. **기존 DB** (이미 `tasks`만 있는 경우): `server/migrations/001_tasks_user_id_rls.sql`을 실행한 뒤, 대시보드 **Settings → API → Reload schema cache** (또는 SQL에서 `NOTIFY pgrst, 'reload schema';`)를 실행하세요. 기존 `user_id` 없는 행은 마이그레이션에서 삭제될 수 있습니다.
+4. **Authentication**: Supabase 대시보드에서 Email 로그인을 활성화하세요.
+5. 프로젝트 설정에서 API URL과 **anon** key를 복사해 `server/.env`에 넣고, 동일 값을 프론트 루트 `.env`의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`에도 설정하세요.
+
+## 인증 (업무 API)
+
+- `GET/POST/PUT/DELETE/PATCH /api/tasks*` 요청에는 헤더 `Authorization: Bearer <Supabase access_token>`이 필요합니다. (로그인 후 프론트가 자동으로 붙입니다.)
+- 토큰 없이 호출하면 `401`입니다.
+- `GET /api/fetch-url-title` 등은 인증 없이 사용 가능합니다.
 
 ## 실행
 
@@ -46,7 +53,9 @@ npm start
 ## API 엔드포인트
 
 ### GET /api/tasks
-업무 목록 조회
+업무 목록 조회 (로그인 사용자 본인 데이터만, RLS)
+
+**헤더:** `Authorization: Bearer <access_token>`
 
 ### POST /api/tasks
 새 업무 생성

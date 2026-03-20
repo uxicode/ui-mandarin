@@ -8,6 +8,9 @@ Mandarin Priority는 중요도와 시급성을 별점으로 입력받아 2x2 매
 
 ## 주요 기능
 
+- ✅ **회원**: Supabase 로그인 후 업무가 서버(DB)에 저장되며 계정별로 분리됩니다.
+- ✅ **게스트**: 로그인 없이 사용 가능하며, 업무 데이터는 브라우저 **localStorage**에만 저장됩니다 (API 미전송).
+- ✅ 로그인 / 회원가입 / 프로필(표시 이름)
 - ✅ 업무 항목 생성/수정/삭제
 - ✅ 인라인 편집 (업무 항목 확장하여 바로 수정)
 - ✅ 2가지 별점 입력 시스템 (중요도, 시급성)
@@ -23,14 +26,24 @@ Mandarin Priority는 중요도와 시급성을 별점으로 입력받아 2x2 매
 - SCSS (스타일링)
 - Vite (빌드 도구)
 
+## 환경 변수 (프론트)
+
+프로젝트 루트에 `.env` 파일을 만들고 `.env.example`을 참고하세요.
+
+- `VITE_API_BASE_URL` — Express API (기본 `http://localhost:3001/api`)
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — 로그인/회원가입용 (서버의 Supabase 프로젝트와 동일)
+
 ## 설치 및 실행
 
 ```bash
 # 의존성 설치
 npm install
 
-# 개발 서버 실행
+# 프론트만
 npm run dev
+
+# 프론트 + API 동시 (권장)
+npm run dev:all
 
 # 프로덕션 빌드
 npm run build

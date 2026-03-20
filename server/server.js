@@ -42,12 +42,32 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1)
 }
 
+/** 인증 없이 사용 (fetch-url-title 등) */
 const supabase = createClient(supabaseUrl, supabaseKey)
 
+/** 요청의 JWT로 RLS가 적용되는 Supabase 클라이언트 */
+function createUserSupabase(req) {
+  const authHeader = req.headers.authorization
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  return createClient(supabaseUrl, supabaseKey, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+}
+
+function requireTaskAuth(req, res, next) {
+  const client = createUserSupabase(req)
+  if (!client) {
+    return res.status(401).json({ success: false, error: '인증이 필요합니다.' })
+  }
+  req.taskSupabase = client
+  next()
+}
+
 // 업무 목록 조회 (GET /api/tasks)
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', requireTaskAuth, async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await req.taskSupabase
       .from('tasks')
       .select('*')
       .order('created_at', { ascending: false })
@@ -62,7 +82,7 @@ app.get('/api/tasks', async (req, res) => {
 })
 
 // 업무 생성 (POST /api/tasks)
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', requireTaskAuth, async (req, res) => {
   try {
     const { title, description, scores, startDate, deadline, completed } = req.body
 
@@ -73,7 +93,7 @@ app.post('/api/tasks', async (req, res) => {
       })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await req.taskSupabase
       .from('tasks')
       .insert([
         {
@@ -99,7 +119,7 @@ app.post('/api/tasks', async (req, res) => {
 })
 
 // 업무 수정 (PUT /api/tasks/:id)
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', requireTaskAuth, async (req, res) => {
   try {
     const { id } = req.params
     const { title, description, scores, startDate, deadline, completed } = req.body
@@ -115,7 +135,7 @@ app.put('/api/tasks/:id', async (req, res) => {
     if (deadline !== undefined) updateData.deadline = deadline || null
     if (completed !== undefined) updateData.completed = completed
 
-    const { data, error } = await supabase
+    const { data, error } = await req.taskSupabase
       .from('tasks')
       .update(updateData)
       .eq('id', id)
@@ -139,11 +159,11 @@ app.put('/api/tasks/:id', async (req, res) => {
 })
 
 // 업무 삭제 (DELETE /api/tasks/:id)
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', requireTaskAuth, async (req, res) => {
   try {
     const { id } = req.params
 
-    const { error } = await supabase
+    const { error } = await req.taskSupabase
       .from('tasks')
       .delete()
       .eq('id', id)
@@ -158,12 +178,11 @@ app.delete('/api/tasks/:id', async (req, res) => {
 })
 
 // 업무 완료 토글 (PATCH /api/tasks/:id/toggle)
-app.patch('/api/tasks/:id/toggle', async (req, res) => {
+app.patch('/api/tasks/:id/toggle', requireTaskAuth, async (req, res) => {
   try {
     const { id } = req.params
 
-    // 현재 업무 조회
-    const { data: task, error: fetchError } = await supabase
+    const { data: task, error: fetchError } = await req.taskSupabase
       .from('tasks')
       .select('completed')
       .eq('id', id)
@@ -178,8 +197,7 @@ app.patch('/api/tasks/:id/toggle', async (req, res) => {
       })
     }
 
-    // 완료 상태 토글
-    const { data, error } = await supabase
+    const { data, error } = await req.taskSupabase
       .from('tasks')
       .update({ completed: !task.completed })
       .eq('id', id)

@@ -3,6 +3,8 @@ import { ref, computed } from 'vue'
 import type { Task, TaskWithComputed } from '@/types/task'
 import { computeTask } from '@/utils/score-calculator'
 import { apiService } from '@/services/api'
+import { localTaskStorage } from '@/services/localTaskStorage'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const useTaskStore = defineStore('task', () => {
   const tasks = ref<Task[]>([])
@@ -13,12 +15,10 @@ export const useTaskStore = defineStore('task', () => {
     return tasks.value.map(computeTask)
   })
 
-  // 미완료 업무만
   const incompleteTasks = computed<Task[]>(() => {
     return tasks.value.filter(task => !task.completed)
   })
 
-  // 완료된 업무만 (완료 시각 기준 최신순)
   const completedTasks = computed<Task[]>(() => {
     return tasks.value
       .filter(task => task.completed)
@@ -29,12 +29,20 @@ export const useTaskStore = defineStore('task', () => {
       })
   })
 
+  function isGuest(): boolean {
+    return !useAuthStore().isAuthenticated
+  }
+
   async function fetchTasks() {
     isLoading.value = true
     error.value = null
     try {
-      const fetchedTasks = await apiService.getTasks()
-      tasks.value = fetchedTasks
+      if (isGuest()) {
+        tasks.value = localTaskStorage.load()
+      } else {
+        const fetchedTasks = await apiService.getTasks()
+        tasks.value = fetchedTasks
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : '업무 목록을 불러오는데 실패했습니다.'
       console.error('업무 목록 불러오기 오류:', err)
@@ -48,6 +56,16 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
+      if (isGuest()) {
+        const newTask: Task = {
+          ...task,
+          id: crypto.randomUUID(),
+          completed: false,
+        }
+        tasks.value.push(newTask)
+        localTaskStorage.save(tasks.value)
+        return newTask
+      }
       const newTask = await apiService.createTask(task)
       tasks.value.push(newTask)
       return newTask
@@ -64,6 +82,14 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
+      if (isGuest()) {
+        const index = tasks.value.findIndex((t) => t.id === id)
+        if (index === -1) throw new Error('업무를 찾을 수 없습니다.')
+        const merged = { ...tasks.value[index], ...updates } as Task
+        tasks.value[index] = merged
+        localTaskStorage.save(tasks.value)
+        return merged
+      }
       const updatedTask = await apiService.updateTask(id, updates)
       const index = tasks.value.findIndex((task) => task.id === id)
       if (index !== -1) {
@@ -83,6 +109,19 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
+      if (isGuest()) {
+        const index = tasks.value.findIndex((t) => t.id === id)
+        if (index === -1) throw new Error('업무를 찾을 수 없습니다.')
+        const t = tasks.value[index]
+        const updated: Task = {
+          ...t,
+          completed: !t.completed,
+          updatedAt: new Date().toISOString(),
+        }
+        tasks.value[index] = updated
+        localTaskStorage.save(tasks.value)
+        return updated
+      }
       const updatedTask = await apiService.toggleTaskComplete(id)
       const index = tasks.value.findIndex((task) => task.id === id)
       if (index !== -1) {
@@ -102,6 +141,14 @@ export const useTaskStore = defineStore('task', () => {
     isLoading.value = true
     error.value = null
     try {
+      if (isGuest()) {
+        const index = tasks.value.findIndex((t) => t.id === id)
+        if (index !== -1) {
+          tasks.value.splice(index, 1)
+          localTaskStorage.save(tasks.value)
+        }
+        return
+      }
       await apiService.deleteTask(id)
       const index = tasks.value.findIndex((task) => task.id === id)
       if (index !== -1) {

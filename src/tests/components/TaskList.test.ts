@@ -50,7 +50,7 @@ describe('TaskList', () => {
 
   it('should display incomplete tasks', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Incomplete Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
@@ -75,13 +75,13 @@ describe('TaskList', () => {
   it('should display completed tasks in separate section', async () => {
     const store = useTaskStore()
     
-    store.addTask({
+    await store.addTask({
       title: 'Incomplete Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
     })
 
-    store.addTask({
+    await store.addTask({
       title: 'Will be completed',
       scores: { importance: 4, urgency: 4 },
       completed: false,
@@ -89,7 +89,7 @@ describe('TaskList', () => {
 
     // Complete the second task
     const taskId = store.tasks[1].id
-    store.updateTask(taskId, { completed: true })
+    await store.updateTask(taskId, { completed: true })
 
     const wrapper = mount(TaskList, {
       global: {
@@ -111,7 +111,7 @@ describe('TaskList', () => {
 
   it('should emit select event when task is clicked', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Test Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
@@ -137,7 +137,7 @@ describe('TaskList', () => {
 
   it('should toggle task completion when checkbox is clicked', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Test Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
@@ -165,7 +165,7 @@ describe('TaskList', () => {
 
   it('should show edit form when edit button is clicked', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Test Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
@@ -214,7 +214,7 @@ describe('TaskList', () => {
 
   it('should display task with dates', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Task with dates',
       scores: { importance: 3, urgency: 3 },
       completed: false,
@@ -239,7 +239,7 @@ describe('TaskList', () => {
 
   it('should highlight selected task', async () => {
     const store = useTaskStore()
-    store.addTask({
+    await store.addTask({
       title: 'Test Task',
       scores: { importance: 3, urgency: 3 },
       completed: false,
