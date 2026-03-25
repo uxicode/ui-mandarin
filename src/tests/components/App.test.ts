@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, setActivePinia, getActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { useTaskStore } from '@/stores/task-store'
 import { useAuthStore } from '@/stores/auth-store'
@@ -15,16 +15,23 @@ vi.mock('@vuepic/vue-datepicker', () => ({
   },
 }))
 
-vi.mock('@/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn(() => ({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      })),
-    },
-  },
-}))
+function mockFetchForAuth() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/auth/me')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: true, user: null }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        )
+      }
+      return Promise.reject(new Error(`Unmocked fetch: ${url}`))
+    })
+  )
+}
 
 function createRouterInstance() {
   return createRouter({
@@ -39,12 +46,14 @@ function createRouterInstance() {
 }
 
 async function mountApp() {
+  const pinia = getActivePinia()
+  if (!pinia) throw new Error('Pinia not active')
   const router = createRouterInstance()
   await router.push('/')
   await router.isReady()
   return mount(App, {
     global: {
-      plugins: [router],
+      plugins: [pinia, router],
       stubs: {
         TaskList: true,
         PriorityMatrix: true,
@@ -58,9 +67,14 @@ async function mountApp() {
 
 describe('App', () => {
   beforeEach(() => {
+    mockFetchForAuth()
     setActivePinia(createPinia())
     const auth = useAuthStore()
-    auth.session = null
+    auth.user = null
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('should render header with title and subtitle', async () => {

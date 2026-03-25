@@ -2,7 +2,12 @@
   <div class="auth-view">
     <div class="auth-card">
       <h1 class="auth-card__title">로그인</h1>
-      <p class="auth-card__hint">로그인하면 서버에 업무가 저장됩니다. 비로그인 시 이 기기 로컬에만 저장됩니다.</p>
+      <p class="auth-card__hint">
+        로그인하면 API 서버를 통해 업무가 저장됩니다. 비로그인 시 이 기기 로컬에만 저장됩니다. (<code
+          >npm run dev:all</code
+        >
+        로 프론트+백엔드를 함께 실행하세요.)
+      </p>
       <form class="auth-form" @submit.prevent="onSubmit">
         <label class="auth-form__label">
           이메일
@@ -119,6 +124,15 @@ async function onSubmit() {
 .auth-form__error {
   font-size: 0.875rem;
   color: $color-danger;
+
+  &--block {
+    margin-bottom: 0;
+    line-height: 1.5;
+
+    code {
+      font-size: 0.8125rem;
+    }
+  }
 }
 
 .auth-form__submit {

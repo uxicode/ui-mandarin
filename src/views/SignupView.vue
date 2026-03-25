@@ -63,7 +63,7 @@ async function onSubmit() {
       password.value,
       displayName.value.trim() || undefined
     )
-    if (data.session) {
+    if (data.sessionCreated) {
       await router.push('/')
     } else {
       infoMessage.value = '가입 확인 이메일을 확인한 뒤 로그인해 주세요.'
@@ -134,6 +134,15 @@ async function onSubmit() {
 .auth-form__error {
   font-size: 0.875rem;
   color: $color-danger;
+
+  &--block {
+    margin-bottom: 0;
+    line-height: 1.5;
+
+    code {
+      font-size: 0.8125rem;
+    }
+  }
 }
 
 .auth-form__info {

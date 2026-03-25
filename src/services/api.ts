@@ -2,21 +2,8 @@ import type { Task } from '@/types/task'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
-/** 순환 참조 방지: main에서 auth 스토어 토큰 주입 */
-let getAccessToken: () => string | null = () => null
-
-export function setApiAccessTokenGetter(fn: () => string | null): void {
-  getAccessToken = fn
-}
-
-function authHeaders(): HeadersInit {
-  const token = getAccessToken()
-  if (!token) return {}
-  return { Authorization: `Bearer ${token}` }
-}
-
-function mergeTaskHeaders(base: HeadersInit = {}): HeadersInit {
-  return { ...base, ...authHeaders() }
+const fetchDefaults: RequestInit = {
+  credentials: 'include',
 }
 
 interface ApiResponse<T> {
@@ -67,7 +54,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const apiService = {
   async getTasks(): Promise<Task[]> {
     const response = await fetch(`${API_BASE_URL}/tasks`, {
-      headers: mergeTaskHeaders(),
+      ...fetchDefaults,
     })
     const tasks = await handleResponse<SupabaseTask[]>(response)
     return tasks.map(transformSupabaseTask)
@@ -76,9 +63,10 @@ export const apiService = {
   async createTask(task: Omit<Task, 'id' | 'completed'>): Promise<Task> {
     const response = await fetch(`${API_BASE_URL}/tasks`, {
       method: 'POST',
-      headers: mergeTaskHeaders({
+      ...fetchDefaults,
+      headers: {
         'Content-Type': 'application/json',
-      }),
+      },
       body: JSON.stringify({
         title: task.title,
         description: task.description,
@@ -107,9 +95,10 @@ export const apiService = {
 
     const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
       method: 'PUT',
-      headers: mergeTaskHeaders({
+      ...fetchDefaults,
+      headers: {
         'Content-Type': 'application/json',
-      }),
+      },
       body: JSON.stringify(body),
     })
 
@@ -120,7 +109,7 @@ export const apiService = {
   async deleteTask(id: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
       method: 'DELETE',
-      headers: mergeTaskHeaders(),
+      ...fetchDefaults,
     })
 
     await handleResponse<void>(response)
@@ -129,7 +118,7 @@ export const apiService = {
   async toggleTaskComplete(id: string): Promise<Task> {
     const response = await fetch(`${API_BASE_URL}/tasks/${id}/toggle`, {
       method: 'PATCH',
-      headers: mergeTaskHeaders(),
+      ...fetchDefaults,
     })
 
     const supabaseTask = await handleResponse<SupabaseTask>(response)
@@ -138,7 +127,10 @@ export const apiService = {
 
   async fetchUrlTitle(url: string): Promise<{ title: string; openGraph?: Record<string, string>; meta?: Record<string, string> }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/fetch-url-title?url=${encodeURIComponent(url)}`)
+      const response = await fetch(
+        `${API_BASE_URL}/fetch-url-title?url=${encodeURIComponent(url)}`,
+        { ...fetchDefaults }
+      )
       const data = await response.json()
 
       if (!response.ok || !data.success) {

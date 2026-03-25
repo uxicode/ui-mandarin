@@ -2,7 +2,6 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
-import { setApiAccessTokenGetter } from './services/api'
 import { useAuthStore } from './stores/auth-store'
 import './styles/reset.scss'
 
@@ -12,7 +11,6 @@ const pinia = createPinia()
 app.use(pinia)
 
 const authStore = useAuthStore()
-setApiAccessTokenGetter(() => authStore.accessToken ?? null)
 
 app.use(router)
 

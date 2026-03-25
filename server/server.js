@@ -43,26 +43,240 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 /** 인증 없이 사용 (fetch-url-title 등) */
-const supabase = createClient(supabaseUrl, supabaseKey)
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+})
 
-/** 요청의 JWT로 RLS가 적용되는 Supabase 클라이언트 */
-function createUserSupabase(req) {
+const COOKIE_ACCESS = 'mandarin_access'
+const COOKIE_REFRESH = 'mandarin_refresh'
+
+function parseCookies(header) {
+  if (!header || typeof header !== 'string') return {}
+  return Object.fromEntries(
+    header.split(';').map((part) => {
+      const idx = part.indexOf('=')
+      if (idx === -1) return [part.trim(), '']
+      const k = part.slice(0, idx).trim()
+      const v = part.slice(idx + 1).trim()
+      try {
+        return [k, decodeURIComponent(v)]
+      } catch {
+        return [k, v]
+      }
+    })
+  )
+}
+
+function cookieBaseOpts() {
+  const secure = IS_PRODUCTION ? '; Secure' : ''
+  return `Path=/; HttpOnly; SameSite=Lax${secure}`
+}
+
+function clearAuthCookies(res) {
+  const base = cookieBaseOpts()
+  res.append('Set-Cookie', `${COOKIE_ACCESS}=; Max-Age=0; ${base}`)
+  res.append('Set-Cookie', `${COOKIE_REFRESH}=; Max-Age=0; ${base}`)
+}
+
+function setAuthCookies(res, session) {
+  if (!session?.access_token || !session.refresh_token) return
+  const base = cookieBaseOpts()
+  const maxAccess = Math.max(60, Number(session.expires_in) || 3600)
+  const maxRefresh = 60 * 60 * 24 * 30
+  res.append(
+    'Set-Cookie',
+    `${COOKIE_ACCESS}=${encodeURIComponent(session.access_token)}; Max-Age=${maxAccess}; ${base}`
+  )
+  res.append(
+    'Set-Cookie',
+    `${COOKIE_REFRESH}=${encodeURIComponent(session.refresh_token)}; Max-Age=${maxRefresh}; ${base}`
+  )
+}
+
+function getAccessTokenFromRequest(req) {
   const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim()
+  }
+  const cookies = parseCookies(req.headers.cookie)
+  return cookies[COOKIE_ACCESS] || null
+}
+
+function getRefreshTokenFromRequest(req) {
+  const cookies = parseCookies(req.headers.cookie)
+  return cookies[COOKIE_REFRESH] || null
+}
+
+function createUserClient(accessToken) {
   return createClient(supabaseUrl, supabaseKey, {
-    global: { headers: { Authorization: authHeader } },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
 
-function requireTaskAuth(req, res, next) {
-  const client = createUserSupabase(req)
-  if (!client) {
-    return res.status(401).json({ success: false, error: '인증이 필요합니다.' })
+/**
+ * 액세스 토큰(또는 리프레시)으로 세션 복원. 성공 시 필요하면 Set-Cookie로 토큰 갱신.
+ */
+async function resolveUserSession(req, res) {
+  let access = getAccessTokenFromRequest(req)
+
+  const tryWithAccess = async (token) => {
+    if (!token) return null
+    const client = createUserClient(token)
+    const { data: { user }, error } = await client.auth.getUser(token)
+    if (error || !user) return null
+    return { accessToken: token, user, client }
   }
-  req.taskSupabase = client
-  next()
+
+  if (access) {
+    const ok = await tryWithAccess(access)
+    if (ok) return ok
+  }
+
+  const refresh = getRefreshTokenFromRequest(req)
+  if (refresh) {
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token: refresh })
+    if (!error && data.session) {
+      setAuthCookies(res, data.session)
+      const client = createUserClient(data.session.access_token)
+      return {
+        accessToken: data.session.access_token,
+        user: data.session.user,
+        client,
+      }
+    }
+  }
+
+  return null
 }
+
+async function requireTaskAuth(req, res, next) {
+  try {
+    const resolved = await resolveUserSession(req, res)
+    if (!resolved) {
+      return res.status(401).json({ success: false, error: '인증이 필요합니다.' })
+    }
+    req.taskSupabase = resolved.client
+    req.authUser = resolved.user
+    next()
+  } catch (err) {
+    console.error('requireTaskAuth:', err)
+    return res.status(500).json({ success: false, error: err.message || '인증 처리 오류' })
+  }
+}
+
+function userJson(user) {
+  if (!user) return null
+  return {
+    id: user.id,
+    email: user.email,
+    user_metadata: user.user_metadata || {},
+  }
+}
+
+// —— Auth (세션은 HttpOnly 쿠키, Supabase는 서버에서만 사용) ——
+
+/** 로그인 여부 조회. 게스트는 401이 아니라 200 + user: null (브라우저 콘솔/네트워크에 불필요한 오류 표시 방지) */
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const resolved = await resolveUserSession(req, res)
+    if (!resolved) {
+      return res.json({ success: true, user: null })
+    }
+    return res.json({ success: true, user: userJson(resolved.user) })
+  } catch (error) {
+    console.error('auth/me 오류:', error)
+    return res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {}
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: '이메일과 비밀번호가 필요합니다.' })
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      return res.status(401).json({ success: false, error: error.message })
+    }
+    if (!data.session) {
+      return res.status(401).json({ success: false, error: '세션을 만들 수 없습니다.' })
+    }
+    setAuthCookies(res, data.session)
+    return res.json({ success: true, user: userJson(data.session.user) })
+  } catch (error) {
+    console.error('auth/login 오류:', error)
+    return res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { email, password, displayName } = req.body || {}
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: '이메일과 비밀번호가 필요합니다.' })
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: displayName ? { display_name: displayName } : undefined,
+      },
+    })
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    if (data.session) {
+      setAuthCookies(res, data.session)
+    }
+    const u = data.session?.user || data.user
+    return res.status(201).json({
+      success: true,
+      user: u ? userJson(u) : null,
+      sessionCreated: !!data.session,
+    })
+  } catch (error) {
+    console.error('auth/signup 오류:', error)
+    return res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const access = getAccessTokenFromRequest(req)
+    clearAuthCookies(res)
+    if (access) {
+      const client = createUserClient(access)
+      await client.auth.signOut().catch(() => {})
+    }
+    return res.json({ success: true })
+  } catch (error) {
+    console.error('auth/logout 오류:', error)
+    clearAuthCookies(res)
+    return res.json({ success: true })
+  }
+})
+
+app.patch('/api/auth/profile', async (req, res) => {
+  try {
+    const resolved = await resolveUserSession(req, res)
+    if (!resolved) {
+      return res.status(401).json({ success: false, error: '인증이 필요합니다.' })
+    }
+    const { displayName } = req.body || {}
+    const { data, error } = await resolved.client.auth.updateUser({
+      data: displayName !== undefined ? { display_name: displayName } : undefined,
+    })
+    if (error) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    return res.json({ success: true, user: userJson(data.user) })
+  } catch (error) {
+    console.error('auth/profile 오류:', error)
+    return res.status(500).json({ success: false, error: error.message })
+  }
+})
 
 // 업무 목록 조회 (GET /api/tasks)
 app.get('/api/tasks', requireTaskAuth, async (req, res) => {
@@ -92,7 +306,8 @@ app.post('/api/tasks', requireTaskAuth, async (req, res) => {
         error: '제목과 점수는 필수입니다.' 
       })
     }
-
+ 
+    // user_id 추가
     const { data, error } = await req.taskSupabase
       .from('tasks')
       .insert([

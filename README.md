@@ -30,8 +30,9 @@ Mandarin Priority는 중요도와 시급성을 별점으로 입력받아 2x2 매
 
 프로젝트 루트에 `.env` 파일을 만들고 `.env.example`을 참고하세요.
 
-- `VITE_API_BASE_URL` — Express API (기본 `http://localhost:3001/api`)
-- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — 로그인/회원가입용 (서버의 Supabase 프로젝트와 동일)
+- `VITE_API_BASE_URL` — Express API (기본 `http://localhost:3001/api`). **로그인·세션은 모두 이 API(백엔드)에서 Supabase로 처리**하며, 프론트에는 Supabase URL/키가 필요 없습니다.
+
+백엔드(Supabase 연결)는 `server/.env`의 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 를 사용합니다.
 
 ## 설치 및 실행
 

@@ -1,75 +1,128 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+
+const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api').replace(/\/$/, '')
+
+export interface AuthUser {
+  id: string
+  email?: string
+  user_metadata?: Record<string, unknown>
+}
+
+async function parseJson(res: Response): Promise<Record<string, unknown>> {
+  try {
+    return (await res.json()) as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
-  const session = ref<Session | null>(null)
+  const user = ref<AuthUser | null>(null)
   const initDone = ref(false)
 
-  const user = computed<User | null>(() => session.value?.user ?? null)
-  const isAuthenticated = computed(() => !!session.value?.access_token)
-  const accessToken = computed(() => session.value?.access_token ?? null)
+  const isAuthenticated = computed(() => !!user.value)
+
+  /** 로그인 상태에 맞게 서버 tasks 또는 게스트 localStorage 로드 */
+  async function refreshTasksAfterAuthChange() {
+    const { useTaskStore } = await import('@/stores/task-store')
+    await useTaskStore().fetchTasks().catch(() => {})
+  }
 
   async function initAuth() {
-    const { data: { session: s } } = await supabase.auth.getSession()
-    session.value = s
-
-    supabase.auth.onAuthStateChange(async (event, newSession) => {
-      session.value = newSession
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        const { useTaskStore } = await import('@/stores/task-store')
-        await useTaskStore().fetchTasks().catch(() => {})
+    try {
+      const res = await fetch(`${apiBase}/auth/me`, {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await parseJson(res)
+        if (data.success && data.user && typeof data.user === 'object') {
+          user.value = data.user as AuthUser
+        } else {
+          user.value = null
+        }
+      } else {
+        user.value = null
       }
-    })
-
+    } catch {
+      user.value = null
+    }
+    // 세션 복원 직후: 회원이면 API, 게스트면 localStorage 에서 목록 로드
+    await refreshTasksAfterAuthChange()
     initDone.value = true
   }
 
   async function signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    session.value = data.session
+    const res = await fetch(`${apiBase}/auth/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const data = await parseJson(res)
+    if (!res.ok || !data.success) {
+      throw new Error(typeof data.error === 'string' ? data.error : '로그인에 실패했습니다.')
+    }
+    if (data.user && typeof data.user === 'object') {
+      user.value = data.user as AuthUser
+    }
+    await refreshTasksAfterAuthChange()
     return data
   }
 
   async function signUp(email: string, password: string, displayName?: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: displayName ? { display_name: displayName } : undefined,
-      },
+    const res = await fetch(`${apiBase}/auth/signup`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, displayName }),
     })
-    if (error) throw error
-    session.value = data.session
+    const data = await parseJson(res)
+    if (!res.ok || !data.success) {
+      throw new Error(typeof data.error === 'string' ? data.error : '회원가입에 실패했습니다.')
+    }
+    if (data.sessionCreated && data.user && typeof data.user === 'object') {
+      user.value = data.user as AuthUser
+    } else {
+      user.value = null
+    }
+    await refreshTasksAfterAuthChange()
     return data
   }
 
   async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-    session.value = null
+    try {
+      await fetch(`${apiBase}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } finally {
+      user.value = null
+      await refreshTasksAfterAuthChange()
+    }
   }
 
   async function updateProfile(updates: { displayName?: string }) {
-    const { data, error } = await supabase.auth.updateUser({
-      data: updates.displayName !== undefined ? { display_name: updates.displayName } : undefined,
+    const res = await fetch(`${apiBase}/auth/profile`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: updates.displayName }),
     })
-    if (error) throw error
-    if (data.user) {
-      const { data: { session: s } } = await supabase.auth.getSession()
-      session.value = s
+    const data = await parseJson(res)
+    if (!res.ok || !data.success) {
+      throw new Error(typeof data.error === 'string' ? data.error : '프로필 수정에 실패했습니다.')
+    }
+    if (data.user && typeof data.user === 'object') {
+      user.value = data.user as AuthUser
     }
     return data
   }
 
   return {
-    session,
-    initDone,
     user,
+    initDone,
     isAuthenticated,
-    accessToken,
     initAuth,
     signIn,
     signUp,

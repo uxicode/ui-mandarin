@@ -1,5 +1,9 @@
 -- 신규 프로젝트용 tasks 테이블 (회원별 RLS)
--- 기존 DB는 server/migrations/001_tasks_user_id_rls.sql 등을 SQL Editor에서 실행하세요.
+--
+-- ⚠️ 이 파일은 Git에만 있을 뿐 Supabase와 자동 동기화되지 않습니다.
+--    반드시 Supabase 대시보드 → SQL Editor에서 전체 실행해 DB에 반영하세요.
+--
+-- 기존에 tasks 테이블만 있던 DB → migrations/001_tasks_user_id_rls.sql 을 대신 실행.
 
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
