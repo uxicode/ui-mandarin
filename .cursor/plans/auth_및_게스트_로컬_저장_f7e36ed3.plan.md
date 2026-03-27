@@ -39,6 +39,8 @@ flowchart TB
   end
 ```
 
+
+
 - **회원**: 프론트에서 `Authorization: Bearer <access_token>`으로 Express 호출. Express는 요청마다 **동일 anon 키**로 Supabase 클라이언트를 만들되, 헤더에 사용자 JWT를 넘겨 PostgREST가 `auth.uid()`를 인식하게 함 → RLS로 본인 `tasks`만 접근.
 - **비회원**: `task-store`가 `apiService`의 tasks API를 **전혀 호출하지 않고** `[src/services/localTaskStorage.ts](src/services/localTaskStorage.ts)` (신규)로 `Task[]`를 직렬화 저장/로드. `fetch-url-title` 등 공용 API는 기존처럼 무인증 호출 가능.
 
@@ -73,6 +75,49 @@ createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 ```
 
 - `fetch-url-title` 등 인증 불필요한 라우트는 기존 클라이언트 유지.
+
+---
+
+## 2.1 Supabase JS `auth` API 명세 (`server/server.js`)
+
+`createClient(url, anonKey)`로 만든 인스턴스의 `**auth` 속성**은 GoTrue(Auth) REST API를 감싼 클라이언트다. 아래는 **현재 레포의 Express에서 실제 호출하는 것과, 서버에서 쓸 때의 패턴이다.
+
+### `createClient` 옵션 (서버 쪽)
+
+- `**auth: { persistSession: false, autoRefreshToken: false }`**  
+Node에는 브라우저 저장소가 없고, 세션은 **HttpOnly 쿠키로 직접 관리하므로 JS SDK가 세션을 디스크에 유지·자동 갱신하지 않게 둔다.
+
+### 요청별 사용자 JWT가 붙은 클라이언트 (`createUserClient`)
+
+```js
+createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+```
+
+- 이후 `from('tasks')` 등은 PostgREST가 JWT에서 `auth.uid()`를 인식 → RLS 적용.
+
+### `server.js`에서 사용하는 `auth` 메서드
+
+
+| 메서드                                                     | 호출 주체                      | 용도                                                                                               |
+| ------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------ |
+| `client.auth.getUser(jwt)`                              | `accessToken`이 붙은 `client` | 액세스 토큰(JWT) 문자열 검증 및 사용자 객체 조회. 쿠키에서 꺼낸 토큰으로 “누구 요청인지” 판별.                                       |
+| `supabase.auth.refreshSession({ refresh_token })`       | anon 기본 `supabase`         | 액세스 만료 시 리프레시 토큰으로 새 세션 발급. 성공 시 `setAuthCookies`로 쿠키 재설정.                                       |
+| `supabase.auth.signInWithPassword({ email, password })` | anon 기본 `supabase`         | 이메일/비밀번호 로그인. `data.session`에 `access_token`, `refresh_token`, `user` 등.                         |
+| `supabase.auth.signUp({ email, password, options })`    | anon 기본 `supabase`         | 회원가입. `options.data`에 `user_metadata`(예: `display_name`). 이메일 확인 설정에 따라 `data.session`이 없을 수 있음. |
+| `client.auth.signOut()`                                 | JWT 붙은 `client`            | 해당 액세스 토큰 기준 서버 측 세션 종료 시도. 로그아웃 라우트에서 쿠키 삭제와 함께 호출.                                             |
+| `client.auth.updateUser({ data })`                      | JWT 붙은 `resolved.client`   | 로그인 사용자 메타데이터 갱신(프로필). 예: `{ data: { display_name: '…' } }`.                                     |
+
+
+### 참고 (이 레포에서 쓰지 않지만 같은 `auth`에 있는 것들)
+
+- `getSession()`, `onAuthStateChange()` — 브라우저 클라이언트·세션 유지 모델에 주로 사용.
+- `signInWithOAuth`, `signInWithOtp`, `verifyOtp`, `resetPasswordForEmail` 등 — 공급자/OTP/비밀번호 재설정.
+- **서비스 롤** 클라이언트 전용 `**auth.admin.` — 일반 anon 클라이언트에는 없음.
+
+전체 시그니처·옵션은 Supabase 공식 [JavaScript Auth 레퍼런스](https://supabase.com/docs/reference/javascript/auth-signinwithpassword)를 따른다.
 
 ---
 
@@ -134,3 +179,4 @@ createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 3. `localTaskStorage` + `task-store` 게스트/회원 분기 + `api` 헤더.
 4. `supabase` 클라이언트 + `auth-store` + `initAuth`.
 5. `vue-router` + 로그인/회원가입/프로필 화면 + `App.vue` 헤더 연동.
+

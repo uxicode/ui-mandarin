@@ -63,7 +63,7 @@ async function onLogout() {
 }
 
 .app__header {
-  padding: $spacing-lg $spacing-xl;
+  padding: $spacing-md $spacing-xl;
   background: $color-white;
   border-bottom: 1px solid $color-gray-200;
   box-shadow: $shadow-sm;
@@ -87,7 +87,7 @@ async function onLogout() {
 }
 
 .app__title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: $color-gray-900;
   margin-bottom: $spacing-xs;
