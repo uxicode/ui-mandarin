@@ -113,6 +113,7 @@
     <!-- 새 업무 추가 폼 -->
     <TaskForm
       v-if="showAddForm"
+      :is-submitting="isAddingTask"
       @submit="handleAddSubmit"
       @cancel="handleAddCancel"
     />
@@ -608,6 +609,7 @@ function weekDayAriaLabel(cell: WeekDayCell): string {
 
 // 새 업무 추가 폼 표시 여부
 const showAddForm = ref(false)
+const isAddingTask = ref(false)
 
 // 편집 중인 업무 ID
 const editingTaskId = ref<string | undefined>()
@@ -717,6 +719,7 @@ function handleAddClick() {
 
 // 새 업무 추가 제출
 async function handleAddSubmit(task: Omit<Task, 'id'>) {
+  isAddingTask.value = true
   try {
     await taskStore.addTask({
       title: task.title,
@@ -728,6 +731,8 @@ async function handleAddSubmit(task: Omit<Task, 'id'>) {
     showAddForm.value = false
   } catch (error) {
     console.error('업무 추가 실패:', error)
+  } finally {
+    isAddingTask.value = false
   }
 }
 

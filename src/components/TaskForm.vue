@@ -1,5 +1,21 @@
 <template>
-  <div class="task-form">
+  <Teleport to="body">
+    <div
+      v-if="isSubmittingProp"
+      class="task-form-load-root"
+      role="dialog"
+      aria-modal="true"
+      aria-live="polite"
+      aria-label="업무 저장 중"
+    >
+      <div class="task-form-load-panel" @click.stop>
+        <div class="task-form-load-donut" aria-hidden="true" />
+        <span class="task-form-load-text">저장 중…</span>
+      </div>
+    </div>
+  </Teleport>
+
+  <div class="task-form" :aria-busy="isSubmittingProp">
     <h2 class="task-form__title">{{ isEditing ? '업무 수정' : '새 업무 추가' }}</h2>
     <form @submit.prevent="handleSubmit" class="task-form__form">
       <div class="task-form__field">
@@ -98,10 +114,19 @@
       </div>
 
       <div class="task-form__actions">
-        <button type="button" class="task-form__button task-form__button--cancel" @click="handleCancel">
+        <button
+          type="button"
+          class="task-form__button task-form__button--cancel"
+          :disabled="isSubmittingProp"
+          @click="handleCancel"
+        >
           취소
         </button>
-        <button type="submit" class="task-form__button task-form__button--submit">
+        <button
+          type="submit"
+          class="task-form__button task-form__button--submit"
+          :disabled="isSubmittingProp"
+        >
           {{ isEditing ? '수정' : '추가' }}
         </button>
       </div>
@@ -119,6 +144,8 @@ import type { Task, TaskScores } from '@/types/task'
 
 interface Props {
   task?: Task
+  /** 부모에서 API 제출 중 (도넛 로딩) */
+  isSubmitting?: boolean
 }
 
 interface Emits {
@@ -128,6 +155,8 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const isSubmittingProp = computed(() => props.isSubmitting ?? false)
 
 const isEditing = computed(() => !!props.task)
 
@@ -509,6 +538,59 @@ function handleCancel() {
   --dp-primary-text-color: #{$color-white};
   --dp-hover-color: #{$color-gray-100};
   --dp-border-color: #{$color-gray-300};
+}
+</style>
+
+<style lang="scss">
+// Teleport → body: scoped[data-v] 미적용 시 오버레이가 안 보이는 문제 방지 (전역 클래스)
+@use '@/styles/variables.scss' as *;
+
+.task-form-load-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-md;
+  background: rgba($color-gray-900, 0.55);
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+.task-form-load-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-xl $spacing-2xl;
+  background: $color-white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+  pointer-events: auto;
+}
+
+.task-form-load-donut {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 4px solid rgba($color-primary, 0.2);
+  border-top-color: $color-primary;
+  animation: task-form-load-donut-spin 0.75s linear infinite;
+}
+
+@keyframes task-form-load-donut-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.task-form-load-text {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $color-gray-700;
 }
 </style>
 
