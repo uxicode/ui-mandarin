@@ -4,7 +4,7 @@
       <div class="app__header-row">
         <div class="app__brand">
           <RouterLink to="/" class="app__title-link">
-            <h1 class="app__title">Mandarin Priority</h1>
+            <h1 class="app__title">Weekly Priorities</h1>
           </RouterLink>
           <p class="app__subtitle">감정이 아닌 수치로 업무 우선순위를 시각화</p>
         </div>

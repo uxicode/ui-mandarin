@@ -1,5 +1,98 @@
 <template>
   <div class="task-list">
+    <div class="task-list__week-wrap">
+      <div class="task-list__week-toolbar">
+        <button type="button" class="task-list__week-nav" aria-label="이전 주" @click="shiftWeek(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__week-nav-icon">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <span class="task-list__week-range">{{ weekRangeLabel }}</span>
+        <button type="button" class="task-list__week-nav" aria-label="다음 주" @click="shiftWeek(1)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__week-nav-icon">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+        <button type="button" class="task-list__week-full" @click="openMonthCalendar">전체보기</button>
+      </div>
+
+      <div class="task-list__week" role="group" aria-label="주간 일정">
+        <button
+          v-for="cell in weekCells"
+          :key="cell.dateKey"
+          type="button"
+          class="task-list__week-day"
+          :class="{ 'task-list__week-day--selected': selectedCalendarDay === cell.dateKey }"
+          :aria-pressed="selectedCalendarDay === cell.dateKey ? 'true' : 'false'"
+          :aria-label="weekDayAriaLabel(cell)"
+          @click="toggleCalendarDay(cell.dateKey)"
+        >
+          <span class="task-list__week-weekday">{{ cell.weekdayLabel }}</span>
+          <span class="task-list__week-num">{{ cell.dayOfMonth }}</span>
+          <span class="task-list__week-dots" aria-hidden="true">
+            <span v-if="getDotCountForDateKey(cell.dateKey) >= 1" class="task-list__week-dot" />
+            <span v-if="getDotCountForDateKey(cell.dateKey) >= 2" class="task-list__week-dot" />
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showMonthCalendar"
+        class="task-list__modal-backdrop"
+        role="presentation"
+        @click.self="closeMonthCalendar"
+      >
+        <div
+          class="task-list__month-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="task-list-month-calendar-title"
+          tabindex="-1"
+        >
+          <div class="task-list__month-toolbar">
+            <button type="button" class="task-list__month-nav" aria-label="이전 달" @click="shiftCalendarMonth(-1)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__week-nav-icon">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <h3 id="task-list-month-calendar-title" class="task-list__month-title">{{ calendarMonthTitle }}</h3>
+            <button type="button" class="task-list__month-nav" aria-label="다음 달" @click="shiftCalendarMonth(1)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__week-nav-icon">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+            <button type="button" class="task-list__month-close" @click="closeMonthCalendar">닫기</button>
+          </div>
+          <div class="task-list__month-weekdays" aria-hidden="true">
+            <span v-for="label in monthWeekdayLabels" :key="label" class="task-list__month-weekday-label">{{ label }}</span>
+          </div>
+          <div class="task-list__month-grid">
+            <button
+              v-for="(mcell, idx) in monthGridCells"
+              :key="mcell.dateKey + '-' + idx"
+              type="button"
+              class="task-list__month-cell"
+              :class="{
+                'task-list__month-cell--outside': !mcell.inMonth,
+                'task-list__month-cell--selected': selectedCalendarDay === mcell.dateKey,
+              }"
+              :aria-label="monthCellAriaLabel(mcell)"
+              :aria-pressed="selectedCalendarDay === mcell.dateKey ? 'true' : 'false'"
+              @click="selectDayFromMonth(mcell)"
+            >
+              <span class="task-list__month-cell-num">{{ mcell.dayOfMonth }}</span>
+              <span class="task-list__month-cell-dots" aria-hidden="true">
+                <span v-if="getDotCountForDateKey(mcell.dateKey) >= 1" class="task-list__week-dot" />
+                <span v-if="getDotCountForDateKey(mcell.dateKey) >= 2" class="task-list__week-dot" />
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <div class="task-list__header">
       <h2 class="task-list__title">업무 목록</h2>
       <button class="task-list__add-button" @click="handleAddClick">
@@ -24,16 +117,20 @@
       @cancel="handleAddCancel"
     />
 
-    <div v-if="incompleteTasks.length === 0 && completedTasks.length === 0 && !showAddForm" class="task-list__empty">
-      <p>업무가 없습니다. 새 업무를 추가해보세요.</p>
+    <div
+      v-if="displayIncompleteTasks.length === 0 && displayCompletedTasks.length === 0 && !showAddForm"
+      class="task-list__empty"
+    >
+      <p v-if="selectedCalendarDay">선택한 날짜에 해당하는 업무가 없습니다.</p>
+      <p v-else>업무가 없습니다. 새 업무를 추가해보세요.</p>
     </div>
 
     <!-- 미완료 업무 목록 -->
-    <div v-if="incompleteTasks.length > 0" class="task-list__section">
-      <h3 class="task-list__section-title">진행 중 ({{ incompleteTasks.length }})</h3>
+    <div v-if="displayIncompleteTasks.length > 0" class="task-list__section">
+      <h3 class="task-list__section-title">진행 중 ({{ displayIncompleteTasks.length }})</h3>
       <div class="task-list__items">
         <div
-          v-for="(task, index) in incompleteTasks"
+          v-for="(task, index) in displayIncompleteTasks"
           :key="task.id"
           class="task-item"
           :class="{ 
@@ -252,11 +349,11 @@
     </div>
 
     <!-- 완료된 업무 목록 -->
-    <div v-if="completedTasks.length > 0" class="task-list__section task-list__section--completed">
-      <h3 class="task-list__section-title">완료 ({{ completedTasks.length }})</h3>
+    <div v-if="displayCompletedTasks.length > 0" class="task-list__section task-list__section--completed">
+      <h3 class="task-list__section-title">완료 ({{ displayCompletedTasks.length }})</h3>
       <div class="task-list__items">
         <div
-          v-for="task in completedTasks"
+          v-for="task in displayCompletedTasks"
           :key="task.id"
           class="task-item task-item--completed"
           :class="{ 'task-item--selected': selectedTaskId === task.id }"
@@ -372,10 +469,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
 import { calculateScores, getQuadrant as getQuadrantFromScores } from '@/utils/score-calculator'
 import { formatDeadline, isOverdue, getTimeRemaining, formatStartDate, hasStarted, getStartStatus, getTaskDuration } from '@/utils/date-formatter'
+import {
+  getWeekDaysMonSun,
+  getMonthGrid,
+  countTasksOnDate,
+  dotCountForDay,
+  taskHasDateOnCalendar,
+  parseLocalDateKey,
+  type WeekDayCell,
+  type MonthGridCell,
+} from '@/utils/task-calendar'
 import { VueDatePicker } from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import StarRating from './StarRating.vue'
@@ -395,8 +502,109 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const taskStore = useTaskStore()
-const incompleteTasks = computed(() => taskStore.incompleteTasks)
-const completedTasks = computed(() => taskStore.completedTasks)
+
+const selectedCalendarDay = ref<string | null>(null)
+
+/** 주간 스트립이 표시할 주(그 안의 아무 날짜) */
+const weekAnchor = ref(new Date())
+
+const weekCells = computed(() => getWeekDaysMonSun(weekAnchor.value))
+
+const weekRangeLabel = computed(() => {
+  const cells = weekCells.value
+  if (cells.length < 7) return ''
+  const da = parseLocalDateKey(cells[0].dateKey)
+  const db = parseLocalDateKey(cells[6].dateKey)
+  const sameMonth = da.getMonth() === db.getMonth() && da.getFullYear() === db.getFullYear()
+  if (sameMonth) {
+    return `${da.getFullYear()}년 ${da.getMonth() + 1}월 ${da.getDate()}일–${db.getDate()}일`
+  }
+  return `${da.getMonth() + 1}/${da.getDate()} – ${db.getMonth() + 1}/${db.getDate()}`
+})
+
+function shiftWeek(delta: number) {
+  const d = new Date(weekAnchor.value)
+  d.setDate(d.getDate() + delta * 7)
+  weekAnchor.value = d
+}
+
+const showMonthCalendar = ref(false)
+const calendarView = ref({ year: new Date().getFullYear(), month: new Date().getMonth() })
+
+const monthWeekdayLabels = ['월', '화', '수', '목', '금', '토', '일']
+
+const monthGridCells = computed(() =>
+  getMonthGrid(calendarView.value.year, calendarView.value.month)
+)
+
+const calendarMonthTitle = computed(
+  () => `${calendarView.value.year}년 ${calendarView.value.month + 1}월`
+)
+
+function openMonthCalendar() {
+  const n = new Date()
+  calendarView.value = { year: n.getFullYear(), month: n.getMonth() }
+  showMonthCalendar.value = true
+}
+
+function closeMonthCalendar() {
+  showMonthCalendar.value = false
+}
+
+function shiftCalendarMonth(delta: number) {
+  const d = new Date(calendarView.value.year, calendarView.value.month + delta, 1)
+  calendarView.value = { year: d.getFullYear(), month: d.getMonth() }
+}
+
+function selectDayFromMonth(mcell: MonthGridCell) {
+  selectedCalendarDay.value = mcell.dateKey
+  weekAnchor.value = parseLocalDateKey(mcell.dateKey)
+  closeMonthCalendar()
+}
+
+function monthCellAriaLabel(mcell: MonthGridCell): string {
+  const n = countTasksOnDate(taskStore.tasks, mcell.dateKey)
+  const d = parseLocalDateKey(mcell.dateKey)
+  return `${d.getMonth() + 1}월 ${d.getDate()}일, 일정 ${n}건`
+}
+
+function onKeydownEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape' && showMonthCalendar.value) closeMonthCalendar()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydownEscape)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydownEscape)
+})
+
+function taskMatchesDayFilter(task: Task): boolean {
+  if (!selectedCalendarDay.value) return true
+  return taskHasDateOnCalendar(task, selectedCalendarDay.value)
+}
+
+const displayIncompleteTasks = computed(() => taskStore.incompleteTasks.filter(taskMatchesDayFilter))
+
+const displayCompletedTasks = computed(() => taskStore.completedTasks.filter(taskMatchesDayFilter))
+
+function toggleCalendarDay(dateKey: string) {
+  if (selectedCalendarDay.value === dateKey) {
+    selectedCalendarDay.value = null
+  } else {
+    selectedCalendarDay.value = dateKey
+  }
+}
+
+function getDotCountForDateKey(dateKey: string): 0 | 1 | 2 {
+  return dotCountForDay(countTasksOnDate(taskStore.tasks, dateKey))
+}
+
+function weekDayAriaLabel(cell: WeekDayCell): string {
+  const n = countTasksOnDate(taskStore.tasks, cell.dateKey)
+  return `${cell.weekdayLabel}요일 ${cell.dayOfMonth}일, 일정 ${n}건`
+}
 
 // 새 업무 추가 폼 표시 여부
 const showAddForm = ref(false)
@@ -591,6 +799,257 @@ function handleDeleteClick(taskId: string) {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.task-list__week-wrap {
+  margin-bottom: $spacing-md;
+  padding-bottom: $spacing-md;
+  border-bottom: 1px solid $color-gray-200;
+}
+
+.task-list__week-toolbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.task-list__week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xs;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  cursor: pointer;
+  color: $color-gray-700;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+}
+
+.task-list__week-nav-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.task-list__week-range {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  text-align: center;
+}
+
+.task-list__week-full {
+  padding: $spacing-xs $spacing-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-primary;
+  background: transparent;
+  border: 1px solid $color-primary;
+  border-radius: $radius-md;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba($color-primary-light, 0.12);
+  }
+}
+
+.task-list__modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-md;
+  background: rgba($color-gray-900, 0.45);
+}
+
+.task-list__month-modal {
+  width: 100%;
+  max-width: 360px;
+  max-height: 90vh;
+  overflow: auto;
+  padding: $spacing-lg;
+  background: $color-white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-lg;
+}
+
+.task-list__month-toolbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.task-list__month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xs;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  cursor: pointer;
+  color: $color-gray-700;
+  transition: background 0.2s;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+}
+
+.task-list__month-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  text-align: center;
+  color: $color-gray-900;
+}
+
+.task-list__month-close {
+  padding: $spacing-xs $spacing-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-600;
+  background: $color-gray-100;
+  border: none;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-gray-200;
+  }
+}
+
+.task-list__month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: $spacing-xs;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: $color-gray-500;
+}
+
+.task-list__month-weekday-label {
+  padding: 2px 0;
+}
+
+.task-list__month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.task-list__month-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: $spacing-xs;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background: $color-gray-50;
+  cursor: pointer;
+  font: inherit;
+  color: $color-gray-900;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+
+  &--outside {
+    opacity: 0.45;
+    background: $color-white;
+  }
+
+  &--selected {
+    border-color: $color-primary;
+    background: rgba($color-primary-light, 0.2);
+  }
+}
+
+.task-list__month-cell-num {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.task-list__month-cell-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  min-height: 8px;
+}
+
+.task-list__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: $spacing-xs;
+}
+
+.task-list__week-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: $spacing-xs $spacing-xs;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background: $color-gray-50;
+  cursor: pointer;
+  font: inherit;
+  color: $color-gray-800;
+  transition: border-color 0.2s, background 0.2s;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+
+  &--selected {
+    border-color: $color-primary;
+    background: rgba($color-primary-light, 0.2);
+  }
+}
+
+.task-list__week-weekday {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: $color-gray-500;
+}
+
+.task-list__week-num {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.task-list__week-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  min-height: 8px;
+}
+
+.task-list__week-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: $color-primary;
 }
 
 .task-list__header {
