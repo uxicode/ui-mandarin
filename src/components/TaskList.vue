@@ -1148,7 +1148,7 @@ function handleDeleteClick(taskId: string) {
 
 .task-list__section {
   margin-bottom: $spacing-xl;
-  height: 510px;
+  min-height: 290px;
   overflow-y: auto;
 
   &--completed {
