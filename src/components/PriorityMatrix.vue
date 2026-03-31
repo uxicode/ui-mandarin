@@ -161,6 +161,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
+import { getWeekStartMondayKey, includeCompletedTaskInMatrix } from '@/utils/task-calendar'
 import type { TaskWithComputed } from '@/types/task'
 
 interface Props {
@@ -176,7 +177,11 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const taskStore = useTaskStore()
-const tasksWithComputed = computed(() => taskStore.tasksWithComputed)
+
+const tasksWithComputed = computed(() => {
+  const weekStartKey = getWeekStartMondayKey()
+  return taskStore.tasksWithComputed.filter((t) => includeCompletedTaskInMatrix(t, weekStartKey))
+})
 
 const hoveredTaskId = ref<string | null>(null)
 const containerRef = ref<HTMLElement | null>(null)

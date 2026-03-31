@@ -23,6 +23,11 @@ function formatLocalDateKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+/** 로컬 캘린더 기준 오늘의 YYYY-MM-DD */
+export function getTodayLocalDateKey(): string {
+  return formatLocalDateKey(new Date())
+}
+
 /** `startKey` ~ `endKey` inclusive, 로컬 날짜 기준 (YYYY-MM-DD 문자열 정렬 가능) */
 export function enumerateDaysInclusive(startKey: string, endKey: string): string[] {
   let a = startKey
@@ -69,6 +74,23 @@ export function startOfWeekMonday(d: Date): Date {
   const diff = dow === 0 ? -6 : 1 - dow
   x.setDate(x.getDate() + diff)
   return x
+}
+
+/** `d`가 속한 주의 월요일(로컬) YYYY-MM-DD */
+export function getWeekStartMondayKey(d: Date = new Date()): string {
+  return formatLocalDateKey(startOfWeekMonday(d))
+}
+
+/**
+ * 우선순위 매트릭스: 완료 업무는 일정 구간의 마지막 날이 금주 월요일 이전이면 제외.
+ * 일정이 없으면 그대로 포함.
+ */
+export function includeCompletedTaskInMatrix(task: Task, weekStartMondayKey: string): boolean {
+  if (!task.completed) return true
+  const keys = getTaskSpanDateKeys(task)
+  if (keys.length === 0) return true
+  const lastKey = keys[keys.length - 1]
+  return lastKey >= weekStartMondayKey
 }
 
 export interface WeekDayCell {

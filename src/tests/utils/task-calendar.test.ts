@@ -9,6 +9,9 @@ import {
   countTasksOnDate,
   dotCountForDay,
   getMonthGrid,
+  getTodayLocalDateKey,
+  getWeekStartMondayKey,
+  includeCompletedTaskInMatrix,
 } from '@/utils/task-calendar'
 import type { Task } from '@/types/task'
 
@@ -23,6 +26,58 @@ function baseTask(overrides: Partial<Task> = {}): Task {
 }
 
 describe('task-calendar', () => {
+  describe('getTodayLocalDateKey', () => {
+    it('matches local calendar today as YYYY-MM-DD', () => {
+      const k = getTodayLocalDateKey()
+      expect(k).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      const d = new Date()
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      expect(k).toBe(`${y}-${m}-${day}`)
+    })
+  })
+
+  describe('getWeekStartMondayKey', () => {
+    it('returns Monday of the same week (local)', () => {
+      const wed = new Date(2026, 0, 7)
+      expect(getWeekStartMondayKey(wed)).toBe('2026-01-05')
+    })
+  })
+
+  describe('includeCompletedTaskInMatrix', () => {
+    const weekStart = '2026-03-23'
+
+    it('includes incomplete tasks regardless of dates', () => {
+      const t = baseTask({
+        completed: false,
+        deadline: '2026-01-01T12:00:00',
+      })
+      expect(includeCompletedTaskInMatrix(t, weekStart)).toBe(true)
+    })
+
+    it('includes completed without schedule', () => {
+      const t = baseTask({ completed: true })
+      expect(includeCompletedTaskInMatrix(t, weekStart)).toBe(true)
+    })
+
+    it('excludes completed when last calendar day is before week Monday', () => {
+      const t = baseTask({
+        completed: true,
+        deadline: '2026-03-22T12:00:00',
+      })
+      expect(includeCompletedTaskInMatrix(t, weekStart)).toBe(false)
+    })
+
+    it('includes completed when deadline is on week Monday or later', () => {
+      const t = baseTask({
+        completed: true,
+        deadline: '2026-03-23T12:00:00',
+      })
+      expect(includeCompletedTaskInMatrix(t, weekStart)).toBe(true)
+    })
+  })
+
   describe('isoToLocalDateKey', () => {
     it('parses ISO to local YYYY-MM-DD', () => {
       const k = isoToLocalDateKey('2026-03-15T12:00:00.000Z')

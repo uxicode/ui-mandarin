@@ -481,6 +481,7 @@ import {
   dotCountForDay,
   taskHasDateOnCalendar,
   parseLocalDateKey,
+  getTodayLocalDateKey,
   type WeekDayCell,
   type MonthGridCell,
 } from '@/utils/task-calendar'
@@ -504,7 +505,7 @@ const emit = defineEmits<Emits>()
 
 const taskStore = useTaskStore()
 
-const selectedCalendarDay = ref<string | null>(null)
+const selectedCalendarDay = ref<string | null>(getTodayLocalDateKey())
 
 /** 주간 스트립이 표시할 주(그 안의 아무 날짜) */
 const weekAnchor = ref(new Date())
