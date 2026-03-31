@@ -13,7 +13,19 @@
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
-        <button type="button" class="task-list__week-full" @click="openMonthCalendar">전체보기</button>
+        <div class="task-list__week-toolbar-end">
+          <button type="button" class="task-list__week-today" aria-label="오늘 날짜가 포함된 주로 이동" @click="goToToday">
+            today
+          </button>
+          <button
+            type="button"
+            class="task-list__week-full"
+            :aria-expanded="showMonthCalendar ? 'true' : 'false'"
+            @click="toggleMonthCalendar"
+          >
+            {{ showMonthCalendar ? '닫기' : '전체보기' }}
+          </button>
+        </div>
       </div>
 
       <div class="task-list__week" role="group" aria-label="주간 일정">
@@ -37,19 +49,13 @@
       </div>
     </div>
 
-    <Teleport to="body">
-      <div
-        v-if="showMonthCalendar"
-        class="task-list__modal-backdrop"
-        role="presentation"
-        @click.self="closeMonthCalendar"
-      >
+    <div class="task-list__month-slide-wrap">
+      <Transition name="task-list-month-slide">
         <div
-          class="task-list__month-modal"
-          role="dialog"
-          aria-modal="true"
+          v-if="showMonthCalendar"
+          class="task-list__month-panel"
+          role="region"
           aria-labelledby="task-list-month-calendar-title"
-          tabindex="-1"
         >
           <div class="task-list__month-toolbar">
             <button type="button" class="task-list__month-nav" aria-label="이전 달" @click="shiftCalendarMonth(-1)">
@@ -90,8 +96,8 @@
             </button>
           </div>
         </div>
-      </div>
-    </Teleport>
+      </Transition>
+    </div>
 
     <div class="task-list__header">
       <h2 class="task-list__title">업무 목록</h2>
@@ -530,6 +536,13 @@ function shiftWeek(delta: number) {
   weekAnchor.value = d
 }
 
+function goToToday() {
+  const now = new Date()
+  weekAnchor.value = now
+  selectedCalendarDay.value = getTodayLocalDateKey()
+  calendarView.value = { year: now.getFullYear(), month: now.getMonth() }
+}
+
 const showMonthCalendar = ref(false)
 const calendarView = ref({ year: new Date().getFullYear(), month: new Date().getMonth() })
 
@@ -543,7 +556,11 @@ const calendarMonthTitle = computed(
   () => `${calendarView.value.year}년 ${calendarView.value.month + 1}월`
 )
 
-function openMonthCalendar() {
+function toggleMonthCalendar() {
+  if (showMonthCalendar.value) {
+    closeMonthCalendar()
+    return
+  }
   const n = new Date()
   calendarView.value = { year: n.getFullYear(), month: n.getMonth() }
   showMonthCalendar.value = true
@@ -561,7 +578,6 @@ function shiftCalendarMonth(delta: number) {
 function selectDayFromMonth(mcell: MonthGridCell) {
   selectedCalendarDay.value = mcell.dateKey
   weekAnchor.value = parseLocalDateKey(mcell.dateKey)
-  closeMonthCalendar()
 }
 
 function monthCellAriaLabel(mcell: MonthGridCell): string {
@@ -852,6 +868,29 @@ function handleDeleteClick(taskId: string) {
   text-align: center;
 }
 
+.task-list__week-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.task-list__week-today {
+  padding: $spacing-xs $spacing-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  background: $color-white;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: $color-gray-100;
+  }
+}
+
 .task-list__week-full {
   padding: $spacing-xs $spacing-sm;
   font-size: 0.8125rem;
@@ -868,26 +907,33 @@ function handleDeleteClick(taskId: string) {
   }
 }
 
-.task-list__modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-md;
-  background: rgba($color-gray-900, 0.45);
+.task-list__month-slide-wrap {
+  overflow: hidden;
 }
 
-.task-list__month-modal {
+.task-list-month-slide-enter-active,
+.task-list-month-slide-leave-active {
+  transition:
+    transform 0.28s ease,
+    opacity 0.28s ease;
+}
+
+.task-list-month-slide-enter-from,
+.task-list-month-slide-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.task-list__month-panel {
   width: 100%;
-  max-width: 360px;
-  max-height: 90vh;
+  max-height: min(70vh, 520px);
   overflow: auto;
+  margin-bottom: $spacing-lg;
   padding: $spacing-lg;
   background: $color-white;
+  border: 1px solid $color-gray-200;
   border-radius: $radius-lg;
-  box-shadow: $shadow-lg;
+  box-shadow: $shadow-sm;
 }
 
 .task-list__month-toolbar {
