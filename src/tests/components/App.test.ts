@@ -55,6 +55,7 @@ async function mountApp() {
     global: {
       plugins: [pinia, router],
       stubs: {
+        TaskPlanningPanel: true,
         TaskList: true,
         PriorityMatrix: true,
         TaskForm: true,
@@ -80,13 +81,14 @@ describe('App', () => {
   it('should render header with title and subtitle', async () => {
     const wrapper = await mountApp()
 
-    expect(wrapper.find('.app__title').text()).toBe('Mandarin Priority')
+    expect(wrapper.find('.app__title').text()).toBe('Weekly Priorities')
     expect(wrapper.find('.app__subtitle').text()).toContain('감정이 아닌 수치로')
   })
 
-  it('should render TaskList inside home route', async () => {
+  it('should render TaskPlanningPanel and TaskList inside home route', async () => {
     const wrapper = await mountApp()
 
+    expect(wrapper.findComponent({ name: 'TaskPlanningPanel' }).exists()).toBe(true)
     expect(wrapper.findComponent({ name: 'TaskList' }).exists()).toBe(true)
   })
 
@@ -96,11 +98,12 @@ describe('App', () => {
     expect(wrapper.findComponent({ name: 'PriorityMatrix' }).exists()).toBe(true)
   })
 
-  it('should have sidebar and content sections on home', async () => {
+  it('should have three-column layout regions on home', async () => {
     const wrapper = await mountApp()
 
-    expect(wrapper.find('.app__sidebar').exists()).toBe(true)
-    expect(wrapper.find('.app__content').exists()).toBe(true)
+    expect(wrapper.find('.app__col--planning').exists()).toBe(true)
+    expect(wrapper.find('.app__col--tasks').exists()).toBe(true)
+    expect(wrapper.find('.app__col--matrix').exists()).toBe(true)
   })
 
   it('should pass selected task ID to components', async () => {
@@ -155,10 +158,8 @@ describe('App', () => {
     const main = wrapper.find('.app__main')
     expect(main.exists()).toBe(true)
 
-    const sidebar = main.find('.app__sidebar')
-    const content = main.find('.app__content')
-
-    expect(sidebar.exists()).toBe(true)
-    expect(content.exists()).toBe(true)
+    expect(main.find('.app__col--planning').exists()).toBe(true)
+    expect(main.find('.app__col--tasks').exists()).toBe(true)
+    expect(main.find('.app__col--matrix').exists()).toBe(true)
   })
 })

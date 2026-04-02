@@ -11,6 +11,8 @@ export interface Task {
   completed: boolean
   startDate?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
   deadline?: string // ISO 8601 format (YYYY-MM-DDTHH:mm)
+  /** 서버/로컬 생성 시각 (ISO 8601). 일정 없을 때 캘린더 동기화에 사용 */
+  createdAt?: string
   updatedAt?: string // ISO 8601, 완료일 정렬 등에 사용
 }
 

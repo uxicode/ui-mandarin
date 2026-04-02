@@ -67,6 +67,38 @@ export function taskHasDateOnCalendar(task: Task, dateKey: string): boolean {
   return getTaskSpanDateKeys(task).includes(dateKey)
 }
 
+/**
+ * 목록·주간 스트립 동기화용 대표 날짜 키 (마감 우선, 없으면 시작, 없으면 구간 첫날).
+ * 일정 없음: null
+ */
+export function getTaskRepresentativeDateKey(task: Task): string | null {
+  const keys = getTaskSpanDateKeys(task)
+  if (keys.length === 0) return null
+  const dk = task.deadline ? isoToLocalDateKey(task.deadline) : null
+  const sk = task.startDate ? isoToLocalDateKey(task.startDate) : null
+  if (dk && keys.includes(dk)) return dk
+  if (sk && keys.includes(sk)) return sk
+  return keys[0]
+}
+
+/**
+ * 목록·주간 스트립 동기화용 날짜 키.
+ * 일정이 있으면 대표 일정일, 없으면 생성일(로컬), 없으면 수정일, 없으면 오늘.
+ */
+export function resolveTaskCalendarDateKey(task: Task): string {
+  const rep = getTaskRepresentativeDateKey(task)
+  if (rep !== null) return rep
+  if (task.createdAt) {
+    const k = isoToLocalDateKey(task.createdAt)
+    if (k) return k
+  }
+  if (task.updatedAt) {
+    const k = isoToLocalDateKey(task.updatedAt)
+    if (k) return k
+  }
+  return getTodayLocalDateKey()
+}
+
 /** 월요일 00:00 로컬 기준 주 시작 */
 export function startOfWeekMonday(d: Date): Date {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -119,11 +151,24 @@ export function getWeekDaysMonSun(anchor: Date): WeekDayCell[] {
   return cells
 }
 
-/** 해당 날짜에 일정이 걸린 업무 수 (0, 1, 2+ 구간용) */
+/** 해당 로컬 날짜가 속한 월~일 주의 시작·끝 dateKey */
+export function getWeekBoundsMonSunForDateKey(dateKey: string): { start: string; end: string } | null {
+  const d = parseLocalDateKey(dateKey)
+  const cells = getWeekDaysMonSun(d)
+  if (cells.length < 7) return null
+  return { start: cells[0]!.dateKey, end: cells[6]!.dateKey }
+}
+
+/** 해당 날짜에 일정이 걸린 업무 수 (0, 1, 2+ 구간용). 일정 없으면 생성일 앵커가 해당 날짜일 때 포함 */
 export function countTasksOnDate(tasks: Task[], dateKey: string): number {
   let n = 0
   for (const task of tasks) {
-    if (getTaskSpanDateKeys(task).includes(dateKey)) n += 1
+    const span = getTaskSpanDateKeys(task)
+    if (span.includes(dateKey)) {
+      n += 1
+      continue
+    }
+    if (span.length === 0 && resolveTaskCalendarDateKey(task) === dateKey) n += 1
   }
   return n
 }

@@ -425,8 +425,8 @@ onUnmounted(() => {
 
 .priority-matrix__container {
   position: relative;
-  width: 80%;
-  height: 80%;
+  width: 100%;
+  height: 100%;
   margin: 0 auto;
   background: $color-white;
   border-radius: $radius-lg;

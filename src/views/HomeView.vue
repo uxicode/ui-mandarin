@@ -1,21 +1,25 @@
 <template>
   <div class="home-view">
     <main class="app__main">
-      <div class="app__sidebar">
+      <aside class="app__col app__col--planning">
+        <TaskPlanningPanel @select="handleSelect" />
+      </aside>
+
+      <section class="app__col app__col--tasks">
         <TaskList
           :selected-task-id="selectedTaskId"
           @select="handleSelect"
           @delete="handleDelete"
         />
-      </div>
+      </section>
 
-      <div class="app__content">
+      <section class="app__col app__col--matrix">
         <PriorityMatrix
           :selected-task-id="selectedTaskId"
           @select="handleSelect"
           @clear-selection="selectedTaskId = undefined"
         />
-      </div>
+      </section>
     </main>
   </div>
 </template>
@@ -23,6 +27,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useTaskStore } from '@/stores/task-store'
+import TaskPlanningPanel from '@/components/TaskPlanningPanel.vue'
 import TaskList from '@/components/TaskList.vue'
 import PriorityMatrix from '@/components/PriorityMatrix.vue'
 
@@ -60,38 +65,40 @@ defineExpose({ selectedTaskId })
 
 .app__main {
   flex: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(300px, 1.2fr) minmax(0, 2.4fr);
   gap: $spacing-xl;
   padding: $spacing-xl;
   overflow: hidden;
   min-height: 0;
 
   @include mobile {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(0, auto);
     padding: $spacing-md;
     gap: $spacing-md;
+    overflow: auto;
   }
 }
 
-.app__sidebar {
-  width: 400px;
+.app__col {
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: $spacing-lg;
-  overflow-y: auto;
+  overflow: auto;
 
-  @include mobile {
-    width: 100%;
-    max-height: 50vh;
+  &--planning {
+    @include mobile {
+      max-height: none;
+    }
   }
-}
 
-.app__content {
-  flex: 1;
-  min-height: 0;
+  &--tasks {
+    min-width: 0;
+  }
 
-  @include mobile {
-    min-height: 50vh;
+  &--matrix {
+    min-width: 0;
   }
 }
 </style>

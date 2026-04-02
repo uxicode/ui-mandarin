@@ -6,12 +6,16 @@ import {
   taskHasDateOnCalendar,
   startOfWeekMonday,
   getWeekDaysMonSun,
+  getWeekBoundsMonSunForDateKey,
   countTasksOnDate,
   dotCountForDay,
   getMonthGrid,
   getTodayLocalDateKey,
   getWeekStartMondayKey,
   includeCompletedTaskInMatrix,
+  getTaskRepresentativeDateKey,
+  resolveTaskCalendarDateKey,
+  isoToLocalDateKey,
 } from '@/utils/task-calendar'
 import type { Task } from '@/types/task'
 
@@ -109,6 +113,42 @@ describe('task-calendar', () => {
     })
   })
 
+  describe('resolveTaskCalendarDateKey', () => {
+    it('uses representative schedule day when set', () => {
+      const t = baseTask({
+        startDate: '2026-06-01T09:00:00',
+        deadline: '2026-06-05T18:00:00',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      })
+      expect(resolveTaskCalendarDateKey(t)).toBe('2026-06-05')
+    })
+    it('uses createdAt local day when no schedule', () => {
+      const t = baseTask({ createdAt: '2026-04-01T12:00:00.000Z' })
+      expect(resolveTaskCalendarDateKey(t)).toBe(isoToLocalDateKey('2026-04-01T12:00:00.000Z'))
+    })
+    it('falls back to updatedAt without createdAt', () => {
+      const t = baseTask({ updatedAt: '2026-05-10T08:00:00.000Z' })
+      expect(resolveTaskCalendarDateKey(t)).toBe(isoToLocalDateKey('2026-05-10T08:00:00.000Z'))
+    })
+  })
+
+  describe('getTaskRepresentativeDateKey', () => {
+    it('returns null when no schedule', () => {
+      expect(getTaskRepresentativeDateKey(baseTask())).toBeNull()
+    })
+    it('prefers deadline when in span', () => {
+      const t = baseTask({
+        startDate: '2026-06-01T09:00:00',
+        deadline: '2026-06-05T18:00:00',
+      })
+      expect(getTaskRepresentativeDateKey(t)).toBe('2026-06-05')
+    })
+    it('uses start when no deadline', () => {
+      const t = baseTask({ startDate: '2026-06-10T09:00:00' })
+      expect(getTaskRepresentativeDateKey(t)).toBe('2026-06-10')
+    })
+  })
+
   describe('getTaskSpanDateKeys', () => {
     it('empty when no dates', () => {
       expect(getTaskSpanDateKeys(baseTask())).toEqual([])
@@ -174,6 +214,15 @@ describe('task-calendar', () => {
     })
   })
 
+  describe('getWeekBoundsMonSunForDateKey', () => {
+    it('returns Monday–Sunday keys for the week containing the date', () => {
+      const b = getWeekBoundsMonSunForDateKey('2026-03-25')
+      expect(b).not.toBeNull()
+      expect(b!.start).toBe('2026-03-23')
+      expect(b!.end).toBe('2026-03-29')
+    })
+  })
+
   describe('getMonthGrid', () => {
     it('returns 42 cells', () => {
       const g = getMonthGrid(2026, 2)
@@ -203,6 +252,16 @@ describe('task-calendar', () => {
     it('counts tasks covering date', () => {
       const k = isoToLocalDateKey('2026-06-10T12:00:00')!
       expect(countTasksOnDate(tasks, k)).toBe(2)
+    })
+
+    it('counts no-schedule task on created anchor day', () => {
+      const anchor = '2026-03-15T10:00:00.000Z'
+      const dayKey = isoToLocalDateKey(anchor)!
+      const withNoSchedule: Task[] = [
+        baseTask({ id: 'ns', createdAt: anchor }),
+      ]
+      expect(countTasksOnDate(withNoSchedule, dayKey)).toBe(1)
+      expect(countTasksOnDate(withNoSchedule, '2026-01-01')).toBe(0)
     })
 
     it('dot cap', () => {

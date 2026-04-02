@@ -57,10 +57,13 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     try {
       if (isGuest()) {
+        const now = new Date().toISOString()
         const newTask: Task = {
           ...task,
           id: crypto.randomUUID(),
           completed: false,
+          createdAt: now,
+          updatedAt: now,
         }
         tasks.value.push(newTask)
         localTaskStorage.save(tasks.value)

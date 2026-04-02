@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTaskStore } from '@/stores/task-store'
+import { useCalendarUiStore } from '@/stores/calendar-ui-store'
 import TaskList from '@/components/TaskList.vue'
 
 // Mock components
@@ -16,6 +17,7 @@ vi.mock('@vuepic/vue-datepicker', () => ({
 describe('TaskList', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    useCalendarUiStore().selectedCalendarDay = null
   })
 
   it('should render header with title and add button', () => {
@@ -214,12 +216,14 @@ describe('TaskList', () => {
 
   it('should display task with dates', async () => {
     const store = useTaskStore()
+    const end = new Date()
+    end.setHours(23, 59, 0, 0)
     await store.addTask({
       title: 'Task with dates',
       scores: { importance: 3, urgency: 3 },
       completed: false,
-      startDate: '2026-01-01T00:00:00',
-      deadline: '2026-01-15T00:00:00',
+      startDate: new Date(end.getFullYear(), end.getMonth(), 1).toISOString(),
+      deadline: end.toISOString(),
     })
 
     const wrapper = mount(TaskList, {

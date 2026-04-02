@@ -37,6 +37,7 @@ function transformSupabaseTask(task: SupabaseTask): Task {
     startDate: task.start_date || undefined,
     deadline: task.deadline || undefined,
     completed: task.completed,
+    createdAt: task.created_at,
     updatedAt: task.updated_at,
   }
 }
