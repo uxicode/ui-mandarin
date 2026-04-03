@@ -2,7 +2,7 @@
   <div class="task-planning">
     <div class="task-planning__feedback" aria-label="업무 피드백">
       <p class="task-planning__feedback-intro">
-        캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 일간 미완료가 없으면 칭찬 릴레이가 나와요.
+        캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
       </p>
 
       <div
@@ -52,6 +52,19 @@
             <h4 class="task-planning__relay-title">주간</h4>
             <p class="task-planning__relay-sub">{{ weekRangeLabel }}</p>
             <p class="task-planning__slot-empty-text">이번 주에 배정된 일정이 없어요.</p>
+          </div>
+          <div v-else-if="weeklyShowRelay" class="task-planning__relay" role="status" aria-live="polite">
+            <h4 class="task-planning__relay-title">주간</h4>
+            <p class="task-planning__relay-sub">{{ weekRangeLabel }}</p>
+            <div class="task-planning__praise-card">
+              <span class="task-planning__check-badge" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="task-planning__check-svg">
+                  <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <p v-if="weeklyCompletedCount > 0" class="task-planning__relay-meta">완료 {{ weeklyCompletedCount }}건 · 미완료 없음</p>
+              <p class="task-planning__feedback-praise-text">{{ weeklyRelayBody }}</p>
+            </div>
           </div>
         </template>
       </div>
@@ -193,8 +206,11 @@ import {
   computeDailyFeedback,
   computeWeeklyFeedback,
   shouldShowDailyPraise,
+  shouldShowWeeklyPraise,
   pickDailyPraiseMessage,
   pickDailyAllClearMessage,
+  pickWeeklyPraiseMessage,
+  pickWeeklyAllClearMessage,
   taskMatchesSelectedDay,
   taskOverlapsWeek,
 } from '@/utils/task-feedback'
@@ -270,9 +286,12 @@ const dailyUseDonut = computed(
     dailyFeedback.value.overdueOnDay.length > 0
 )
 
-/** 해당 주에 일정이 하나라도 있으면 항상 도넛 표시 */
+/** 주간 미완료가 1건 이상일 때만 도넛 표시 */
 const weeklyUseDonut = computed(
-  () => showWeeklyFeedbackChart.value && hasWeeklyScheduledTasks.value
+  () =>
+    showWeeklyFeedbackChart.value &&
+    hasWeeklyScheduledTasks.value &&
+    weeklyFeedback.value.incompleteInWeek.length > 0
 )
 
 /** 일정 있고 미완료 없음(완료만 존재) → 칭찬 릴레이 */
@@ -280,13 +299,31 @@ const dailyShowRelay = computed(
   () => hasDailyScheduledTasks.value && !dailyUseDonut.value
 )
 
+/** 주간 일정 있고 미완료 없음(완료만 존재) → 칭찬 릴레이 */
+const weeklyShowRelay = computed(
+  () =>
+    showWeeklyFeedbackChart.value &&
+    hasWeeklyScheduledTasks.value &&
+    weeklyFeedback.value.incompleteInWeek.length === 0
+)
+
 const dailyCompletedCount = computed(() => dailyFeedback.value.completedOnDay.length)
+
+const weeklyCompletedCount = computed(() => weeklyFeedback.value.completedInWeek.length)
 
 const dailyRelayBody = computed(() =>
   dailyPraise.value
     ? pickDailyPraiseMessage(feedbackDayKey.value)
     : pickDailyAllClearMessage(feedbackDayKey.value)
 )
+
+const weeklyRelayBody = computed(() => {
+  const { start, end } = weekBounds.value
+  if (!start || !end) return ''
+  return shouldShowWeeklyPraise(taskStore.tasks, start, end)
+    ? pickWeeklyPraiseMessage(start, end)
+    : pickWeeklyAllClearMessage(start, end)
+})
 
 const dailyDonutSegments = computed((): FeedbackDonutSegment[] => [
   { key: 'in-progress', label: '진행중',   count: dailyFeedback.value.inProgressOnDay.length, color: COLOR_INPROGRESS },
