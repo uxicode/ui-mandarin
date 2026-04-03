@@ -68,8 +68,12 @@ function parseCookies(header) {
 }
 
 function cookieBaseOpts() {
-  const secure = IS_PRODUCTION ? '; Secure' : ''
-  return `Path=/; HttpOnly; SameSite=Lax${secure}`
+  // 프론트(Vercel)와 API(Render)가 서로 다른 도메인이므로
+  // 프로덕션에서는 SameSite=None; Secure 를 써야 cross-site fetch에 쿠키가 실린다.
+  if (IS_PRODUCTION) {
+    return 'Path=/; HttpOnly; SameSite=None; Secure'
+  }
+  return 'Path=/; HttpOnly; SameSite=Lax'
 }
 
 function clearAuthCookies(res) {
