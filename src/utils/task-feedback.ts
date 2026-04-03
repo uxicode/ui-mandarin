@@ -1,18 +1,22 @@
 import type { Task } from '@/types/task'
 import {
   getTaskSpanDateKeys,
+  getTodayLocalDateKey,
   isoToLocalDateKey,
   resolveTaskCalendarDateKey,
   taskHasDateOnCalendar,
 } from '@/utils/task-calendar'
 
-/** TaskList와 동일 기준 — 선택일에 보이는 미완료만 */
+/** 선택일 기준 업무를 진행중·기한초과·완료 3분류로 반환 */
 export interface DailyFeedbackResult {
-  incompleteOnDay: Task[]
+  inProgressOnDay: Task[]  // 미완료 + (deadline 없음 OR deadline >= 선택일)
+  overdueOnDay: Task[]     // 미완료 + deadline < 선택일
+  completedOnDay: Task[]   // 완료
 }
 
-/** 캘린더상 해당 주(월~일)와 일정이 겹치는 미완료만 — 일정이 주에 걸치지 않으면 주간 건수에 넣지 않음 */
+/** 캘린더상 해당 주(월~일)와 일정이 겹치는 업무를 완료·미완료로 반환 */
 export interface WeeklyFeedbackResult {
+  completedInWeek: Task[]
   incompleteInWeek: Task[]
 }
 
@@ -109,18 +113,39 @@ export function countCompletedOverlappingWeek(
   return tasks.filter((t) => t.completed && taskOverlapsWeek(t, weekStartKey, weekEndKey)).length
 }
 
-export function computeDailyFeedback(tasks: Task[], dateKey: string): DailyFeedbackResult {
-  const incompleteOnDay = tasks.filter((t) => !t.completed && taskMatchesSelectedDay(t, dateKey))
-  return { incompleteOnDay }
+/**
+ * 기한초과 여부는 today 기준으로 판단합니다.
+ * (스팬 안에 있는 날은 deadline >= selectedDay 가 항상 성립하므로,
+ *  overdue 기준을 selectedDay 가 아닌 오늘로 맞춰야 실제 초과 업무가 분류됩니다.)
+ */
+export function computeDailyFeedback(
+  tasks: Task[],
+  dateKey: string,
+  todayKey: string = getTodayLocalDateKey()
+): DailyFeedbackResult {
+  const matched = tasks.filter((t) => taskMatchesSelectedDay(t, dateKey))
+  const completedOnDay = matched.filter((t) => t.completed)
+  const incomplete = matched.filter((t) => !t.completed)
+  const overdueOnDay = incomplete.filter((t) => {
+    if (!t.deadline) return false
+    const dk = isoToLocalDateKey(t.deadline)
+    return dk !== null && dk < todayKey
+  })
+  const inProgressOnDay = incomplete.filter((t) => {
+    if (!t.deadline) return true
+    const dk = isoToLocalDateKey(t.deadline)
+    return dk === null || dk >= todayKey
+  })
+  return { inProgressOnDay, overdueOnDay, completedOnDay }
 }
 
 /** 일간 칭찬: 해당일 마감인 업무가 하나라도 있고 모두 완료이며, 그날 보이는 미완료 없음 */
-export function shouldShowDailyPraise(tasks: Task[], dateKey: string): boolean {
+export function shouldShowDailyPraise(tasks: Task[], dateKey: string, todayKey?: string): boolean {
   const withDeadlineOnDate = getTasksWithDeadlineOnDate(tasks, dateKey)
   if (withDeadlineOnDate.length === 0) return false
   if (!withDeadlineOnDate.every((t) => t.completed)) return false
-  const { incompleteOnDay } = computeDailyFeedback(tasks, dateKey)
-  return incompleteOnDay.length === 0
+  const { inProgressOnDay, overdueOnDay } = computeDailyFeedback(tasks, dateKey, todayKey)
+  return inProgressOnDay.length === 0 && overdueOnDay.length === 0
 }
 
 export function computeWeeklyFeedback(
@@ -128,10 +153,11 @@ export function computeWeeklyFeedback(
   weekStartKey: string,
   weekEndKey: string
 ): WeeklyFeedbackResult {
-  const incompleteInWeek = tasks.filter(
-    (t) => !t.completed && taskOverlapsWeek(t, weekStartKey, weekEndKey)
-  )
-  return { incompleteInWeek }
+  const inWeek = tasks.filter((t) => taskOverlapsWeek(t, weekStartKey, weekEndKey))
+  return {
+    completedInWeek: inWeek.filter((t) => t.completed),
+    incompleteInWeek: inWeek.filter((t) => !t.completed),
+  }
 }
 
 /** 주간 칭찬: 금주에 마감이 있는 업무가 있고, 금주 미완료가 없음 */

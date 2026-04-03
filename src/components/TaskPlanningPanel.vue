@@ -2,7 +2,7 @@
   <div class="task-planning">
     <div class="task-planning__feedback" aria-label="업무 피드백">
       <p class="task-planning__feedback-intro">
-        마감일이 있는 업무만 집계합니다. 캘린더에서 고른 날짜·그날이 속한 주 기준으로 일간·주간을 봅니다. 배정된 일정이 없으면 안내 문구가 나오고, 미완료가 없으면 칭찬 릴레이가 나와요.
+        캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 일간 미완료가 없으면 칭찬 릴레이가 나와요.
       </p>
 
       <div
@@ -38,11 +38,6 @@
             <p class="task-planning__feedback-praise-text">{{ dailyRelayBody }}</p>
           </div>
         </div>
-        <div v-else class="task-planning__feedback-slot-empty" role="status">
-          <h4 class="task-planning__relay-title">일간</h4>
-          <p class="task-planning__relay-sub">{{ feedbackDayLabel }} 기준</p>
-          <p class="task-planning__slot-empty-text">{{ dailySlotEmptyMessage }}</p>
-        </div>
 
         <template v-if="showWeeklyFeedbackChart">
           <FeedbackDonut
@@ -58,24 +53,6 @@
             <p class="task-planning__relay-sub">{{ weekRangeLabel }}</p>
             <p class="task-planning__slot-empty-text">이번 주에 배정된 일정이 없어요.</p>
           </div>
-          <div v-else-if="weeklyShowRelay" class="task-planning__relay" role="status" aria-live="polite">
-            <h4 class="task-planning__relay-title">주간</h4>
-            <p class="task-planning__relay-sub">{{ weekRangeLabel }}</p>
-            <div class="task-planning__praise-card">
-              <span class="task-planning__check-badge" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="task-planning__check-svg">
-                  <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </span>
-              <p v-if="weeklyCompletedCount > 0" class="task-planning__relay-meta">완료 {{ weeklyCompletedCount }}건 · 미완료 없음</p>
-              <p class="task-planning__feedback-praise-text">{{ weeklyRelayBody }}</p>
-            </div>
-          </div>
-          <div v-else class="task-planning__feedback-slot-empty" role="status">
-            <h4 class="task-planning__relay-title">주간</h4>
-            <p class="task-planning__relay-sub">{{ weekRangeLabel }}</p>
-            <p class="task-planning__slot-empty-text">{{ weeklySlotEmptyMessage }}</p>
-          </div>
         </template>
       </div>
 
@@ -90,12 +67,28 @@
         </template>
 
         <template v-else-if="selectedFeedback.scope === 'daily'">
-          <template v-if="selectedFeedback.key === 'incomplete'">
-            <p class="task-planning__detail-heading">
-              미완료 ({{ dailyFeedback.incompleteOnDay.length }}건)
-            </p>
-            <ul v-if="dailyFeedback.incompleteOnDay.length > 0" class="task-planning__feedback-list">
-              <li v-for="t in dailyFeedback.incompleteOnDay" :key="t.id">
+          <template v-if="selectedFeedback.key === 'in-progress'">
+            <p class="task-planning__detail-heading">진행중 ({{ dailyFeedback.inProgressOnDay.length }}건)</p>
+            <ul v-if="dailyFeedback.inProgressOnDay.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in dailyFeedback.inProgressOnDay" :key="t.id">
+                <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
+              </li>
+            </ul>
+            <p v-else class="task-planning__feedback-neutral">해당 항목이 없습니다.</p>
+          </template>
+          <template v-else-if="selectedFeedback.key === 'overdue'">
+            <p class="task-planning__detail-heading">기한초과 ({{ dailyFeedback.overdueOnDay.length }}건)</p>
+            <ul v-if="dailyFeedback.overdueOnDay.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in dailyFeedback.overdueOnDay" :key="t.id">
+                <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
+              </li>
+            </ul>
+            <p v-else class="task-planning__feedback-neutral">해당 항목이 없습니다.</p>
+          </template>
+          <template v-else-if="selectedFeedback.key === 'completed'">
+            <p class="task-planning__detail-heading">완료 ({{ dailyFeedback.completedOnDay.length }}건)</p>
+            <ul v-if="dailyFeedback.completedOnDay.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in dailyFeedback.completedOnDay" :key="t.id">
                 <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
               </li>
             </ul>
@@ -107,10 +100,17 @@
         </template>
 
         <template v-else>
-          <template v-if="selectedFeedback.key === 'incomplete'">
-            <p class="task-planning__detail-heading">
-              주간 미완료 ({{ weeklyFeedback.incompleteInWeek.length }}건)
-            </p>
+          <template v-if="selectedFeedback.key === 'completed'">
+            <p class="task-planning__detail-heading">주간 완료 ({{ weeklyFeedback.completedInWeek.length }}건)</p>
+            <ul v-if="weeklyFeedback.completedInWeek.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in weeklyFeedback.completedInWeek" :key="t.id">
+                <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
+              </li>
+            </ul>
+            <p v-else class="task-planning__feedback-neutral">해당 항목이 없습니다.</p>
+          </template>
+          <template v-else-if="selectedFeedback.key === 'incomplete'">
+            <p class="task-planning__detail-heading">주간 미완료 ({{ weeklyFeedback.incompleteInWeek.length }}건)</p>
             <ul v-if="weeklyFeedback.incompleteInWeek.length > 0" class="task-planning__feedback-list">
               <li v-for="t in weeklyFeedback.incompleteInWeek" :key="t.id">
                 <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
@@ -193,13 +193,8 @@ import {
   computeDailyFeedback,
   computeWeeklyFeedback,
   shouldShowDailyPraise,
-  shouldShowWeeklyPraise,
   pickDailyPraiseMessage,
-  pickWeeklyPraiseMessage,
   pickDailyAllClearMessage,
-  pickWeeklyAllClearMessage,
-  countCompletedOnSelectedDay,
-  countCompletedOverlappingWeek,
   taskMatchesSelectedDay,
   taskOverlapsWeek,
 } from '@/utils/task-feedback'
@@ -216,6 +211,9 @@ const taskStore = useTaskStore()
 const calendarStore = useCalendarUiStore()
 const { selectedCalendarDay, weekRangeLabel, weekBounds, calendarView } = storeToRefs(calendarStore)
 
+const COLOR_INPROGRESS = '#3b82f6'
+const COLOR_OVERDUE    = '#ef4444'
+const COLOR_COMPLETED  = '#22c55e'
 const COLOR_INCOMPLETE = '#f59e0b'
 
 interface FeedbackSelection {
@@ -236,52 +234,18 @@ const dailyFeedback = computed(() => computeDailyFeedback(taskStore.tasks, feedb
 
 const dailyPraise = computed(() => shouldShowDailyPraise(taskStore.tasks, feedbackDayKey.value))
 
-const dailyPraiseMessage = computed(() => pickDailyPraiseMessage(feedbackDayKey.value))
-
 const weeklyFeedback = computed(() => {
   const { start, end } = weekBounds.value
   if (!start || !end) {
-    return { incompleteInWeek: [] as Task[] }
+    return { completedInWeek: [] as Task[], incompleteInWeek: [] as Task[] }
   }
   return computeWeeklyFeedback(taskStore.tasks, start, end)
-})
-
-const weeklyPraise = computed(() => {
-  const { start, end } = weekBounds.value
-  if (!start || !end) return false
-  return shouldShowWeeklyPraise(taskStore.tasks, start, end)
-})
-
-const weeklyPraiseMessage = computed(() => {
-  const { start, end } = weekBounds.value
-  if (!start || !end) return ''
-  return pickWeeklyPraiseMessage(start, end)
-})
-
-const dailyAllClearMessage = computed(() => pickDailyAllClearMessage(feedbackDayKey.value))
-
-const weeklyAllClearMessage = computed(() => {
-  const { start, end } = weekBounds.value
-  if (!start || !end) return '금주 범위를 표시할 수 없어요.'
-  return pickWeeklyAllClearMessage(start, end)
 })
 
 const showWeeklyFeedbackChart = computed(() => {
   const { start, end } = weekBounds.value
   return Boolean(start && end)
 })
-
-const dailyIncompleteTotal = computed(() => dailyFeedback.value.incompleteOnDay.length)
-
-const weeklyIncompleteTotal = computed(() => weeklyFeedback.value.incompleteInWeek.length)
-
-/** 선택일 기준 미완료가 있을 때만 (당일 마감·기한 초과·기타) */
-const dailyUseDonut = computed(() => dailyIncompleteTotal.value > 0)
-
-/** 선택일이 속한 주(weekBounds) 기준 미완료가 있을 때만 */
-const weeklyUseDonut = computed(
-  () => showWeeklyFeedbackChart.value && weeklyIncompleteTotal.value > 0
-)
 
 const hasDailyScheduledTasks = computed(() =>
   taskStore.tasks.some((t) => taskMatchesSelectedDay(t, feedbackDayKey.value))
@@ -299,51 +263,41 @@ const weeklyNoSchedule = computed(
   () => showWeeklyFeedbackChart.value && !hasWeeklyScheduledTasks.value
 )
 
-const dailyCompletedCount = computed(() =>
-  countCompletedOnSelectedDay(taskStore.tasks, feedbackDayKey.value)
-)
-
-const weeklyCompletedCount = computed(() => {
-  const { start, end } = weekBounds.value
-  if (!start || !end) return 0
-  return countCompletedOverlappingWeek(taskStore.tasks, start, end)
-})
-
-const dailyShowRelay = computed(
-  () => hasDailyScheduledTasks.value && dailyIncompleteTotal.value === 0
-)
-
-const weeklyShowRelay = computed(
+/** 미완료(진행중+기한초과) 가 1건 이상일 때만 도넛 표시 */
+const dailyUseDonut = computed(
   () =>
-    showWeeklyFeedbackChart.value &&
-    hasWeeklyScheduledTasks.value &&
-    weeklyCompletedCount.value > 0 &&
-    weeklyIncompleteTotal.value === 0
+    dailyFeedback.value.inProgressOnDay.length > 0 ||
+    dailyFeedback.value.overdueOnDay.length > 0
 )
 
-const dailySlotEmptyMessage = computed(() => '표시할 피드백이 없어요.')
+/** 해당 주에 일정이 하나라도 있으면 항상 도넛 표시 */
+const weeklyUseDonut = computed(
+  () => showWeeklyFeedbackChart.value && hasWeeklyScheduledTasks.value
+)
 
-const weeklySlotEmptyMessage = computed(() => '표시할 피드백이 없어요.')
+/** 일정 있고 미완료 없음(완료만 존재) → 칭찬 릴레이 */
+const dailyShowRelay = computed(
+  () => hasDailyScheduledTasks.value && !dailyUseDonut.value
+)
+
+const dailyCompletedCount = computed(() => dailyFeedback.value.completedOnDay.length)
 
 const dailyRelayBody = computed(() =>
-  dailyPraise.value ? dailyPraiseMessage.value : dailyAllClearMessage.value
+  dailyPraise.value
+    ? pickDailyPraiseMessage(feedbackDayKey.value)
+    : pickDailyAllClearMessage(feedbackDayKey.value)
 )
 
-const weeklyRelayBody = computed(() =>
-  weeklyPraise.value ? weeklyPraiseMessage.value : weeklyAllClearMessage.value
-)
+const dailyDonutSegments = computed((): FeedbackDonutSegment[] => [
+  { key: 'in-progress', label: '진행중',   count: dailyFeedback.value.inProgressOnDay.length, color: COLOR_INPROGRESS },
+  { key: 'overdue',     label: '기한초과', count: dailyFeedback.value.overdueOnDay.length,    color: COLOR_OVERDUE },
+  { key: 'completed',   label: '완료',     count: dailyFeedback.value.completedOnDay.length,  color: COLOR_COMPLETED },
+])
 
-const dailyDonutSegments = computed((): FeedbackDonutSegment[] => {
-  const n = dailyFeedback.value.incompleteOnDay.length
-  if (n === 0) return []
-  return [{ key: 'incomplete', label: '미완료', count: n, color: COLOR_INCOMPLETE }]
-})
-
-const weeklyDonutSegments = computed((): FeedbackDonutSegment[] => {
-  const n = weeklyFeedback.value.incompleteInWeek.length
-  if (n === 0) return []
-  return [{ key: 'incomplete', label: '주간 미완료', count: n, color: COLOR_INCOMPLETE }]
-})
+const weeklyDonutSegments = computed((): FeedbackDonutSegment[] => [
+  { key: 'completed',  label: '완료',   count: weeklyFeedback.value.completedInWeek.length,  color: COLOR_COMPLETED },
+  { key: 'incomplete', label: '미완료', count: weeklyFeedback.value.incompleteInWeek.length, color: COLOR_INCOMPLETE },
+])
 
 const detailAriaLabel = computed(() => {
   if (!selectedFeedback.value) return '피드백 상세'
@@ -358,11 +312,15 @@ function onWeeklySegmentClick(key: string) {
   selectedFeedback.value = { scope: 'weekly', key }
 }
 
+function firstCountedKey(segs: FeedbackDonutSegment[]): string | null {
+  return segs.find((s) => s.count > 0)?.key ?? null
+}
+
 watch(
   [dailyDonutSegments, weeklyDonutSegments, dailyUseDonut, weeklyUseDonut, showWeeklyFeedbackChart],
   () => {
-    const dFirst = dailyDonutSegments.value.find((s) => s.count > 0) ?? dailyDonutSegments.value[0]
-    const wFirst = weeklyDonutSegments.value.find((s) => s.count > 0) ?? weeklyDonutSegments.value[0]
+    const dKey = firstCountedKey(dailyDonutSegments.value)
+    const wKey = firstCountedKey(weeklyDonutSegments.value)
 
     if (!dailyUseDonut.value && !weeklyUseDonut.value) {
       selectedFeedback.value = null
@@ -370,42 +328,37 @@ watch(
     }
 
     if (!selectedFeedback.value) {
-      if (dailyUseDonut.value && dFirst && dFirst.count > 0) {
-        selectedFeedback.value = { scope: 'daily', key: dFirst.key }
-      } else if (weeklyUseDonut.value && wFirst && wFirst.count > 0) {
-        selectedFeedback.value = { scope: 'weekly', key: wFirst.key }
+      if (dailyUseDonut.value && dKey) {
+        selectedFeedback.value = { scope: 'daily', key: dKey }
+      } else if (weeklyUseDonut.value && wKey) {
+        selectedFeedback.value = { scope: 'weekly', key: wKey }
       }
       return
     }
+
     const { scope, key } = selectedFeedback.value
     if (scope === 'daily' && !dailyUseDonut.value) {
-      selectedFeedback.value =
-        weeklyUseDonut.value && wFirst && wFirst.count > 0
-          ? { scope: 'weekly', key: wFirst.key }
-          : null
+      selectedFeedback.value = weeklyUseDonut.value && wKey ? { scope: 'weekly', key: wKey } : null
       return
     }
     if (scope === 'weekly' && !weeklyUseDonut.value) {
-      selectedFeedback.value =
-        dailyUseDonut.value && dFirst && dFirst.count > 0 ? { scope: 'daily', key: dFirst.key } : null
+      selectedFeedback.value = dailyUseDonut.value && dKey ? { scope: 'daily', key: dKey } : null
       return
     }
     const validDaily = dailyDonutSegments.value.some((s) => s.key === key)
     const validWeekly = weeklyDonutSegments.value.some((s) => s.key === key)
     if (scope === 'daily' && !validDaily) {
-      selectedFeedback.value =
-        dFirst && dFirst.count > 0
-          ? { scope: 'daily', key: dFirst.key }
-          : wFirst && wFirst.count > 0
-            ? { scope: 'weekly', key: wFirst.key }
-            : null
+      selectedFeedback.value = dKey
+        ? { scope: 'daily', key: dKey }
+        : wKey
+          ? { scope: 'weekly', key: wKey }
+          : null
     } else if (scope === 'weekly' && !validWeekly) {
-      selectedFeedback.value =
-        wFirst && wFirst.count > 0
-          ? { scope: 'weekly', key: wFirst.key }
-          : dFirst && dFirst.count > 0
-            ? { scope: 'daily', key: dFirst.key }
-            : null
+      selectedFeedback.value = wKey
+        ? { scope: 'weekly', key: wKey }
+        : dKey
+          ? { scope: 'daily', key: dKey }
+          : null
     }
   },
   { immediate: true }
