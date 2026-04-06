@@ -20,6 +20,7 @@ async function parseJson(res: Response): Promise<Record<string, unknown>> {
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const initDone = ref(false)
+  const isLoading = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
 
@@ -53,44 +54,55 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signIn(email: string, password: string) {
-    const res = await fetch(`${apiBase}/auth/login`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-    const data = await parseJson(res)
-    if (!res.ok || !data.success) {
-      throw new Error(typeof data.error === 'string' ? data.error : '로그인에 실패했습니다.')
+    isLoading.value = true
+    try {
+      const res = await fetch(`${apiBase}/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await parseJson(res)
+      if (!res.ok || !data.success) {
+        throw new Error(typeof data.error === 'string' ? data.error : '로그인에 실패했습니다.')
+      }
+      if (data.user && typeof data.user === 'object') {
+        user.value = data.user as AuthUser
+      }
+      await refreshTasksAfterAuthChange()
+      return data
+    } finally {
+      isLoading.value = false
     }
-    if (data.user && typeof data.user === 'object') {
-      user.value = data.user as AuthUser
-    }
-    await refreshTasksAfterAuthChange()
-    return data
   }
 
   async function signUp(email: string, password: string, displayName?: string) {
-    const res = await fetch(`${apiBase}/auth/signup`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, displayName }),
-    })
-    const data = await parseJson(res)
-    if (!res.ok || !data.success) {
-      throw new Error(typeof data.error === 'string' ? data.error : '회원가입에 실패했습니다.')
+    isLoading.value = true
+    try {
+      const res = await fetch(`${apiBase}/auth/signup`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, displayName }),
+      })
+      const data = await parseJson(res)
+      if (!res.ok || !data.success) {
+        throw new Error(typeof data.error === 'string' ? data.error : '회원가입에 실패했습니다.')
+      }
+      if (data.sessionCreated && data.user && typeof data.user === 'object') {
+        user.value = data.user as AuthUser
+      } else {
+        user.value = null
+      }
+      await refreshTasksAfterAuthChange()
+      return data
+    } finally {
+      isLoading.value = false
     }
-    if (data.sessionCreated && data.user && typeof data.user === 'object') {
-      user.value = data.user as AuthUser
-    } else {
-      user.value = null
-    }
-    await refreshTasksAfterAuthChange()
-    return data
   }
 
   async function signOut() {
+    isLoading.value = true
     try {
       await fetch(`${apiBase}/auth/logout`, {
         method: 'POST',
@@ -99,29 +111,36 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       user.value = null
       await refreshTasksAfterAuthChange()
+      isLoading.value = false
     }
   }
 
   async function updateProfile(updates: { displayName?: string }) {
-    const res = await fetch(`${apiBase}/auth/profile`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName: updates.displayName }),
-    })
-    const data = await parseJson(res)
-    if (!res.ok || !data.success) {
-      throw new Error(typeof data.error === 'string' ? data.error : '프로필 수정에 실패했습니다.')
+    isLoading.value = true
+    try {
+      const res = await fetch(`${apiBase}/auth/profile`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: updates.displayName }),
+      })
+      const data = await parseJson(res)
+      if (!res.ok || !data.success) {
+        throw new Error(typeof data.error === 'string' ? data.error : '프로필 수정에 실패했습니다.')
+      }
+      if (data.user && typeof data.user === 'object') {
+        user.value = data.user as AuthUser
+      }
+      return data
+    } finally {
+      isLoading.value = false
     }
-    if (data.user && typeof data.user === 'object') {
-      user.value = data.user as AuthUser
-    }
-    return data
   }
 
   return {
     user,
     initDone,
+    isLoading,
     isAuthenticated,
     initAuth,
     signIn,

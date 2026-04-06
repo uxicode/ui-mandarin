@@ -25,8 +25,16 @@
       @cancel="handleAddCancel"
     />
 
+    <!-- 초기 목록 로딩 skeleton -->
+    <div v-if="taskStore.isLoading && taskStore.tasks.length === 0" class="task-list__skeleton" aria-busy="true" aria-label="업무 목록 불러오는 중">
+      <div v-for="n in 4" :key="n" class="task-list__skeleton-item">
+        <span class="task-list__skeleton-check" />
+        <span class="task-list__skeleton-line" />
+      </div>
+    </div>
+
     <div
-      v-if="displayIncompleteTasks.length === 0 && displayCompletedTasks.length === 0 && !showAddForm"
+      v-else-if="displayIncompleteTasks.length === 0 && displayCompletedTasks.length === 0 && !showAddForm"
       class="task-list__empty"
     >
       <p v-if="selectedCalendarDay">선택한 날짜에 해당하는 업무가 없습니다.</p>
@@ -689,6 +697,46 @@ function handleDeleteClick(taskId: string) {
   flex: 1;
   color: $color-gray-500;
   font-size: 0.875rem;
+}
+
+.task-list__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-xs 0;
+}
+
+.task-list__skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-xs;
+}
+
+.task-list__skeleton-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: $radius-sm;
+  background: $color-gray-200;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.task-list__skeleton-line {
+  flex: 1;
+  height: 14px;
+  border-radius: $radius-sm;
+  background: $color-gray-200;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+
+  &:nth-child(odd) {
+    max-width: 75%;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
 }
 
 .task-list__section {

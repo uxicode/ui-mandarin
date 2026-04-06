@@ -76,13 +76,12 @@ describe('task-feedback', () => {
       expect(r.overdueOnDay[0].id).toBe('span-ov')
     })
 
-    it('deadline이 없는 미완료 → inProgressOnDay', () => {
-      // deadline 없으므로 오늘 기준 판단 불가 → 항상 진행중
-      // 날짜 없는 태스크는 resolveTaskCalendarDateKey 로 오늘에 묶임
-      const today = '2026-04-03'
-      const tasks = [baseTask({ id: 'nodl' })]
-      // 날짜 없는 태스크는 createdAt/updatedAt/today 중 하나. 여기선 전부 없으므로 today
-      const r = computeDailyFeedback(tasks, today, today)
+    it('deadline이 없는 미완료 → inProgressOnDay (startDate만 있는 케이스)', () => {
+      // deadline 없으면 overdue 분류 불가 → 항상 진행중
+      // startDate 만 있는 태스크: span = [startDate], 선택일 = startDate 로 매칭
+      const dk = '2026-06-15'
+      const tasks = [baseTask({ id: 'nodl', startDate: '2026-06-15T12:00:00.000Z' })]
+      const r = computeDailyFeedback(tasks, dk, '2026-06-15')
       expect(r.inProgressOnDay).toHaveLength(1)
       expect(r.overdueOnDay).toHaveLength(0)
     })
