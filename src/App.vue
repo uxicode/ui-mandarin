@@ -1,6 +1,6 @@
 <template>
   <div class="app">
-    <AppLoadingBar />
+    <AppLoadingOverlay />
     <header class="app__header">
       <div class="app__header-row">
         <div class="app__brand">
@@ -32,7 +32,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth-store'
-import AppLoadingBar from '@/components/AppLoadingBar.vue'
+import AppLoadingOverlay from '@/components/AppLoadingOverlay.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()

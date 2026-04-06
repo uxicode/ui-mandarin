@@ -1,75 +1,28 @@
 <template>
-  <Teleport to="body">
-    <div
-      v-if="isSubmittingProp"
-      class="task-form-load-root"
-      role="dialog"
-      aria-modal="true"
-      aria-live="polite"
-      aria-label="업무 저장 중"
-    >
-      <div class="task-form-load-panel" @click.stop>
-        <div class="task-form-load-donut" aria-hidden="true" />
-        <span class="task-form-load-text">저장 중…</span>
-      </div>
-    </div>
-  </Teleport>
-
   <div class="task-form" :aria-busy="isSubmittingProp">
     <h2 class="task-form__title">{{ isEditing ? '업무 수정' : '새 업무 추가' }}</h2>
     <form @submit.prevent="handleSubmit" class="task-form__form">
       <div class="task-form__field">
         <label class="task-form__label">제목 *</label>
-        <input
-          v-model="formData.title"
-          type="text"
-          class="task-form__input"
-          placeholder="업무 제목을 입력하세요"
-          required
-        />
+        <input v-model="formData.title" type="text" class="task-form__input" placeholder="업무 제목을 입력하세요" required />
       </div>
 
       <div class="task-form__field">
         <label class="task-form__label">설명</label>
-        <textarea
-          v-model="formData.description"
-          class="task-form__textarea"
-          placeholder="업무 설명을 입력하세요 (선택사항)"
-          rows="3"
-          @paste="handlePaste"
-          @blur="handleBlur"
-        />
+        <textarea v-model="formData.description" class="task-form__textarea" placeholder="업무 설명을 입력하세요 (선택사항)" rows="3"
+          @paste="handlePaste" @blur="handleBlur" />
         <!-- URL 미리보기 티커들 -->
         <div v-if="urlPreviews.length > 0" class="task-form__previews">
-          <div
-            v-for="(preview, index) in urlPreviews"
-            :key="preview.url"
-            class="task-form__preview-ticker"
-          >
-            <a
-              :href="preview.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="task-form__preview-ticker-link"
-            >
+          <div v-for="(preview, index) in urlPreviews" :key="preview.url" class="task-form__preview-ticker">
+            <a :href="preview.url" target="_blank" rel="noopener noreferrer" class="task-form__preview-ticker-link">
               <div v-if="preview.image" class="task-form__preview-ticker-image">
                 <img :src="preview.image" :alt="preview.title" />
               </div>
               <span class="task-form__preview-ticker-title">{{ preview.title }}</span>
             </a>
-            <button
-              class="task-form__preview-ticker-close"
-              @click.stop="removeUrlPreview(index)"
-              title="미리보기 제거"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                class="task-form__preview-ticker-close-icon"
-              >
+            <button class="task-form__preview-ticker-close" @click.stop="removeUrlPreview(index)" title="미리보기 제거">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" class="task-form__preview-ticker-close-icon">
                 <path d="M18 6L6 18M6 6l12 12" />
               </svg>
             </button>
@@ -79,54 +32,28 @@
 
       <div class="task-form__field">
         <label class="task-form__label">시작일시</label>
-        <VueDatePicker
-          v-model="formData.startDate"
-          :enable-time-picker="true"
-          :format="'yyyy년 MM월 dd일 HH:mm'"
-          placeholder="시작일시를 선택하세요"
-          auto-apply
-          :clearable="true"
-        />
+        <VueDatePicker v-model="formData.startDate" :enable-time-picker="true" :format="'yyyy년 MM월 dd일 HH:mm'"
+          placeholder="시작일시를 선택하세요" auto-apply :clearable="true" />
       </div>
 
       <div class="task-form__field">
         <label class="task-form__label">마감일시</label>
-        <VueDatePicker
-          v-model="formData.deadline"
-          :enable-time-picker="true"
-          :format="'yyyy년 MM월 dd일 HH:mm'"
-          placeholder="마감일시를 선택하세요"
-          auto-apply
-          :clearable="true"
-        />
+        <VueDatePicker v-model="formData.deadline" :enable-time-picker="true" :format="'yyyy년 MM월 dd일 HH:mm'"
+          placeholder="마감일시를 선택하세요" auto-apply :clearable="true" />
       </div>
 
       <div class="task-form__scores">
         <h3 class="task-form__scores-title">점수 입력</h3>
-        <StarRating
-          v-model:value="formData.scores.importance"
-          label="중요도"
-        />
-        <StarRating
-          v-model:value="formData.scores.urgency"
-          label="시급성"
-        />
+        <StarRating v-model:value="formData.scores.importance" label="중요도" />
+        <StarRating v-model:value="formData.scores.urgency" label="시급성" />
       </div>
 
       <div class="task-form__actions">
-        <button
-          type="button"
-          class="task-form__button task-form__button--cancel"
-          :disabled="isSubmittingProp"
-          @click="handleCancel"
-        >
+        <button type="button" class="task-form__button task-form__button--cancel" :disabled="isSubmittingProp"
+          @click="handleCancel">
           취소
         </button>
-        <button
-          type="submit"
-          class="task-form__button task-form__button--submit"
-          :disabled="isSubmittingProp"
-        >
+        <button type="submit" class="task-form__button task-form__button--submit" :disabled="isSubmittingProp">
           {{ isEditing ? '수정' : '추가' }}
         </button>
       </div>
@@ -538,59 +465,6 @@ function handleCancel() {
   --dp-primary-text-color: #{$color-white};
   --dp-hover-color: #{$color-gray-100};
   --dp-border-color: #{$color-gray-300};
-}
-</style>
-
-<style lang="scss">
-// Teleport → body: scoped[data-v] 미적용 시 오버레이가 안 보이는 문제 방지 (전역 클래스)
-@use '@/styles/variables.scss' as *;
-
-.task-form-load-root {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483647;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: $spacing-md;
-  background: rgba($color-gray-900, 0.55);
-  pointer-events: auto;
-  isolation: isolate;
-}
-
-.task-form-load-panel {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: $spacing-md;
-  padding: $spacing-xl $spacing-2xl;
-  background: $color-white;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-lg;
-  pointer-events: auto;
-}
-
-.task-form-load-donut {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 4px solid rgba($color-primary, 0.2);
-  border-top-color: $color-primary;
-  animation: task-form-load-donut-spin 0.75s linear infinite;
-}
-
-@keyframes task-form-load-donut-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.task-form-load-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: $color-gray-700;
 }
 </style>
 

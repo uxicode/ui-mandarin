@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth-store'
 export const useTaskStore = defineStore('task', () => {
   const tasks = ref<Task[]>([])
   const isLoading = ref(false)
+  const loadingMessage = ref<string | null>(null)
   const error = ref<string | null>(null)
 
   const tasksWithComputed = computed<TaskWithComputed[]>(() => {
@@ -54,6 +55,7 @@ export const useTaskStore = defineStore('task', () => {
 
   async function addTask(task: Omit<Task, 'id' | 'completed'>) {
     isLoading.value = true
+    loadingMessage.value = '업무 추가 중…'
     error.value = null
     try {
       if (isGuest()) {
@@ -78,11 +80,13 @@ export const useTaskStore = defineStore('task', () => {
       throw err
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function updateTask(id: string, updates: Partial<Omit<Task, 'id'>>) {
     isLoading.value = true
+    loadingMessage.value = '업무 수정 중…'
     error.value = null
     try {
       if (isGuest()) {
@@ -105,11 +109,13 @@ export const useTaskStore = defineStore('task', () => {
       throw err
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function toggleTaskComplete(id: string) {
     isLoading.value = true
+    loadingMessage.value = '완료 상태 변경 중…'
     error.value = null
     try {
       if (isGuest()) {
@@ -137,11 +143,13 @@ export const useTaskStore = defineStore('task', () => {
       throw err
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function deleteTask(id: string) {
     isLoading.value = true
+    loadingMessage.value = '업무 삭제 중…'
     error.value = null
     try {
       if (isGuest()) {
@@ -163,6 +171,7 @@ export const useTaskStore = defineStore('task', () => {
       throw err
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
@@ -176,6 +185,7 @@ export const useTaskStore = defineStore('task', () => {
     incompleteTasks,
     completedTasks,
     isLoading,
+    loadingMessage,
     error,
     fetchTasks,
     addTask,

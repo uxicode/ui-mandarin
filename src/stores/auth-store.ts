@@ -21,6 +21,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<AuthUser | null>(null)
   const initDone = ref(false)
   const isLoading = ref(false)
+  const loadingMessage = ref<string | null>(null)
 
   const isAuthenticated = computed(() => !!user.value)
 
@@ -55,6 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function signIn(email: string, password: string) {
     isLoading.value = true
+    loadingMessage.value = '로그인 중…'
     try {
       const res = await fetch(`${apiBase}/auth/login`, {
         method: 'POST',
@@ -73,11 +75,13 @@ export const useAuthStore = defineStore('auth', () => {
       return data
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function signUp(email: string, password: string, displayName?: string) {
     isLoading.value = true
+    loadingMessage.value = '회원가입 중…'
     try {
       const res = await fetch(`${apiBase}/auth/signup`, {
         method: 'POST',
@@ -98,11 +102,13 @@ export const useAuthStore = defineStore('auth', () => {
       return data
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function signOut() {
     isLoading.value = true
+    loadingMessage.value = '로그아웃 중…'
     try {
       await fetch(`${apiBase}/auth/logout`, {
         method: 'POST',
@@ -112,11 +118,13 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null
       await refreshTasksAfterAuthChange()
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
   async function updateProfile(updates: { displayName?: string }) {
     isLoading.value = true
+    loadingMessage.value = '프로필 수정 중…'
     try {
       const res = await fetch(`${apiBase}/auth/profile`, {
         method: 'PATCH',
@@ -134,6 +142,7 @@ export const useAuthStore = defineStore('auth', () => {
       return data
     } finally {
       isLoading.value = false
+      loadingMessage.value = null
     }
   }
 
@@ -141,6 +150,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     initDone,
     isLoading,
+    loadingMessage,
     isAuthenticated,
     initAuth,
     signIn,
