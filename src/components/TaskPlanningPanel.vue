@@ -5,6 +5,25 @@
         캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
       </p>
 
+      <button
+        type="button"
+        class="task-planning__monthly-btn"
+        @click="showMonthly = !showMonthly"
+      >
+        <svg v-if="showMonthly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__monthly-btn-icon">
+          <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        {{ showMonthly ? '돌아가기' : '월간 리포트' }}
+      </button>
+
+      <!-- 슬라이드 래퍼 -->
+      <div class="task-planning__panel-wrap">
+        <!-- 일간·주간 도넛 + 상세 영역 -->
+        <div
+          class="task-planning__feedback-body"
+          :class="{ 'task-planning__feedback-body--hidden': showMonthly }"
+        >
+
       <div
         class="task-planning__donuts"
         :class="{
@@ -135,7 +154,19 @@
             <p class="task-planning__feedback-neutral">항목을 선택해 주세요.</p>
           </template>
         </template>
+        </div>
+        </div>
+        <!-- // .task-planning__feedback-body -->
+
+        <!-- 월간 리포트 -->
+        <MonthlyReport
+          class="task-planning__monthly-wrap"
+          :class="{ 'task-planning__monthly-wrap--hidden': !showMonthly }"
+          :tasks="taskStore.tasks"
+          @navigate-task="onMonthlyTaskNavigate"
+        />
       </div>
+      <!-- // .task-planning__panel-wrap -->
     </div>
 
     <div class="task-planning__calendar">
@@ -215,6 +246,7 @@ import {
   taskOverlapsWeek,
 } from '@/utils/task-feedback'
 import FeedbackDonut, { type FeedbackDonutSegment } from '@/components/FeedbackDonut.vue'
+import MonthlyReport from '@/components/MonthlyReport.vue'
 import type { Task } from '@/types/task'
 
 interface Emits {
@@ -236,6 +268,8 @@ interface FeedbackSelection {
   scope: 'daily' | 'weekly'
   key: string
 }
+
+const showMonthly = ref(false)
 
 const selectedFeedback = ref<FeedbackSelection | null>(null)
 
@@ -420,6 +454,11 @@ function monthCellAriaLabel(mcell: MonthGridCell): string {
 function getDotCountForDateKey(dateKey: string): 0 | 1 | 2 {
   return dotCountForDay(countTasksOnDate(taskStore.tasks, dateKey))
 }
+
+function onMonthlyTaskNavigate(task: Task) {
+  calendarStore.applyForTask(task)
+  emit('select', task.id)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -436,14 +475,71 @@ function getDotCountForDateKey(dateKey: string): 0 | 1 | 2 {
   padding: $spacing-md;
   border: 1px solid $color-gray-200;
   border-radius: $radius-lg;
-  background: $color-gray-50;
+  background: $color-white;
 }
 
 .task-planning__feedback-intro {
-  margin: 0 0 $spacing-md;
+  margin: 0 0 $spacing-sm;
   font-size: 0.6875rem;
   color: $color-gray-600;
   line-height: 1.4;
+}
+
+.task-planning__monthly-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-md;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $color-primary;
+  border-radius: $radius-md;
+  background: rgba($color-primary-light, 0.1);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $color-primary-dark;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: rgba($color-primary-light, 0.2);
+  }
+}
+
+.task-planning__monthly-btn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+// ── 슬라이드 래퍼 ──────────────────────────────
+.task-planning__panel-wrap {
+  overflow: hidden;
+}
+
+.task-planning__feedback-body {
+  transition: transform 0.3s ease, opacity 0.3s ease, max-height 0.35s ease;
+  max-height: 9999px;
+
+  &--hidden {
+    transform: translateX(-20px);
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    overflow: hidden;
+  }
+}
+
+.task-planning__monthly-wrap {
+  transition: transform 0.3s ease, opacity 0.3s ease, max-height 0.35s ease;
+  max-height: 9999px;
+
+  &--hidden {
+    transform: translateX(20px);
+    opacity: 0;
+    pointer-events: none;
+    max-height: 0;
+    overflow: hidden;
+  }
 }
 
 .task-planning__donuts {
