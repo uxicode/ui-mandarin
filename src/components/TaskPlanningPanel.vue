@@ -672,8 +672,8 @@ function onMonthlyTaskNavigate(task: Task) {
   border: none;
   padding: 0;
   font: inherit;
-  color: $color-primary;
-  text-decoration: underline;
+  color: #545585;
+  // text-decoration: underline;
   cursor: pointer;
   text-align: left;
 
