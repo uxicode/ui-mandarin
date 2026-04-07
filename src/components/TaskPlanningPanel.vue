@@ -1,9 +1,29 @@
 <template>
   <div class="task-planning">
     <div class="task-planning__feedback" aria-label="업무 피드백">
-      <p class="task-planning__feedback-intro">
-        캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
-      </p>
+      <!-- 헤더 행: 타이틀 + 도움말 아이콘 + 월간 리포트 버튼 -->
+      <div class="task-planning__feedback-topbar">
+        <span class="task-planning__feedback-label">피드백</span>
+        <div class="task-planning__intro-wrap">
+          <button
+            type="button"
+            class="task-planning__intro-btn"
+            aria-label="피드백 안내"
+            @mouseenter="showIntroTooltip = true"
+            @mouseleave="showIntroTooltip = false"
+            @focus="showIntroTooltip = true"
+            @blur="showIntroTooltip = false"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__intro-icon">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" stroke-linecap="round" />
+            </svg>
+          </button>
+          <div class="task-planning__intro-tooltip" :class="{ 'task-planning__intro-tooltip--visible': showIntroTooltip }" role="tooltip">
+            캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
+          </div>
+        </div>
+      </div>
 
       <button
         type="button"
@@ -270,6 +290,7 @@ interface FeedbackSelection {
 }
 
 const showMonthly = ref(false)
+const showIntroTooltip = ref(false)
 
 const selectedFeedback = ref<FeedbackSelection | null>(null)
 
@@ -478,11 +499,88 @@ function onMonthlyTaskNavigate(task: Task) {
   background: $color-white;
 }
 
-.task-planning__feedback-intro {
-  margin: 0 0 $spacing-sm;
+.task-planning__feedback-topbar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-sm;
+}
+
+.task-planning__feedback-label {
   font-size: 0.6875rem;
-  color: $color-gray-600;
-  line-height: 1.4;
+  font-weight: 600;
+  color: $color-gray-500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.task-planning__intro-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.task-planning__intro-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: $color-gray-400;
+  cursor: pointer;
+  transition: color 0.15s;
+
+  &:hover,
+  &:focus {
+    color: $color-primary;
+    outline: none;
+  }
+}
+
+.task-planning__intro-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.task-planning__intro-tooltip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%) translateY(-4px);
+  width: 220px;
+  padding: $spacing-sm $spacing-md;
+  background: $color-gray-800;
+  color: $color-white;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+
+  // 말풍선 꼬리
+  &::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid $color-gray-800;
+  }
+
+  &--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .task-planning__monthly-btn {
@@ -619,8 +717,13 @@ function onMonthlyTaskNavigate(task: Task) {
   gap: $spacing-sm;
   padding: $spacing-md;
   border-radius: $radius-lg;
-  background: rgba($color-success, 0.1);
-  border: 1px solid rgba($color-success, 0.35);
+  background: linear-gradient(
+    135deg,
+    rgba($color-success, 0.08) 0%,
+    rgba($color-success, 0.16) 100%
+  );
+  border: 1px solid rgba($color-success, 0.4);
+  box-shadow: 0 0 0 4px rgba($color-success, 0.06), $shadow-sm;
   text-align: center;
   width: 100%;
 }
@@ -635,6 +738,7 @@ function onMonthlyTaskNavigate(task: Task) {
   background: $color-success;
   color: $color-white;
   flex-shrink: 0;
+  box-shadow: 0 0 0 5px rgba($color-success, 0.18);
 }
 
 .task-planning__check-svg {

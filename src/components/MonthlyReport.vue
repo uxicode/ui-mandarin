@@ -386,12 +386,22 @@ function taskDateLabel(task: Task): string | null {
 }
 
 .monthly-report__legend-count {
-  color: $color-gray-500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.07);
   font-size: 0.6875rem;
+  font-weight: 700;
+  color: $color-gray-600;
+  line-height: 1.4;
 }
 
 .monthly-report__legend-btn--active .monthly-report__legend-count {
-  color: $color-primary;
+  background: rgba($color-primary, 0.15);
+  color: $color-primary-dark;
 }
 
 // ── 태스크 목록 ────────────────────────────────

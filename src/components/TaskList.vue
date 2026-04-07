@@ -68,7 +68,8 @@
           :data-task-item-id="task.id"
           :class="{ 
             'task-item--selected': selectedTaskId === task.id,
-            'task-item--editing': editingTaskId === task.id
+            'task-item--editing': editingTaskId === task.id,
+            'task-item--overdue': !task.completed && task.deadline && isOverdue(task.deadline)
           }"
         >
           <!-- 일반 보기 모드 -->
@@ -952,7 +953,18 @@ function handleDeleteClick(taskId: string) {
   &--completed {
     margin-top: $spacing-xl;
     padding-top: $spacing-xl;
-    border-top: 2px solid $color-gray-200;
+    border-top: none;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, transparent, $color-gray-300 30%, $color-gray-300 70%, transparent);
+    }
   }
 }
 
@@ -973,10 +985,12 @@ function handleDeleteClick(taskId: string) {
 
 .task-item {
   @include card;
-  border: 3px solid transparent;
+ // border: 3px solid transparent;
+ border-radius: 0;
+  // 좌측 상태 컬러 바
+  border-left: 3px solid $color-primary;
   transition: all 0.3s ease;
   min-width: 0;
-  // overflow: hidden;
 
   &--selected {
     border-color: $color-primary;
@@ -986,6 +1000,11 @@ function handleDeleteClick(taskId: string) {
   &--editing {
     border-color: $color-primary;
     box-shadow: $shadow-lg;
+  }
+
+  &--overdue {
+    border-left-color: $color-danger;
+    background: rgba($color-danger, 0.02);
   }
 
   .task-item__view{
@@ -998,6 +1017,7 @@ function handleDeleteClick(taskId: string) {
   &--completed {
     background: $color-white;
     padding: $spacing-xs $spacing-md;
+    border-left-color: $color-success;
 
     .task-item__view{
       align-items: center;
