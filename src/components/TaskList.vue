@@ -2,19 +2,32 @@
   <div class="task-list">
     <div class="task-list__header">
       <h2 class="task-list__title">업무 목록</h2>
-      <button class="task-list__add-button" @click="handleAddClick">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          class="task-list__add-icon"
+      <div class="task-list__header-actions">
+        <button
+          type="button"
+          class="task-list__export-btn"
+          :class="{ 'task-list__export-btn--active': showExport }"
+          @click="showExport = !showExport"
         >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        추가
-      </button>
+          <svg v-if="showExport" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__export-btn-icon">
+            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {{ showExport ? '돌아가기' : '완료 리스트 복사' }}
+        </button>
+        <button class="task-list__add-button" @click="handleAddClick">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            class="task-list__add-icon"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          추가
+        </button>
+      </div>
     </div>
 
     <!-- 새 업무 추가 폼 -->
@@ -25,6 +38,10 @@
       @cancel="handleAddCancel"
     />
 
+    <!-- 슬라이드 래퍼: 기존 목록 (grid-template-rows 트릭으로 높이 부드럽게) -->
+    <div class="task-list__main-outer" :class="{ 'task-list__main-outer--collapsed': showExport }">
+    <div class="task-list__main">
+
     <!-- 초기 목록 로딩 skeleton -->
     <div v-if="taskStore.isLoading && taskStore.tasks.length === 0" class="task-list__skeleton" aria-busy="true" aria-label="업무 목록 불러오는 중">
       <div v-for="n in 4" :key="n" class="task-list__skeleton-item">
@@ -34,11 +51,10 @@
     </div>
 
     <div
-      v-else-if="displayIncompleteTasks.length === 0 && displayCompletedTasks.length === 0 && !showAddForm"
+      v-if="!taskStore.isLoading && taskStore.tasks.length > 0 && displayIncompleteTasks.length === 0 && !showAddForm"
       class="task-list__empty"
     >
-      <p v-if="selectedCalendarDay">선택한 날짜에 해당하는 업무가 없습니다.</p>
-      <p v-else>업무가 없습니다. 새 업무를 추가해보세요.</p>
+      <p>할당된 업무 목록이 없습니다.</p>
     </div>
 
     <!-- 미완료 업무 목록 -->
@@ -383,6 +399,41 @@
         </div>
       </div>
     </div>
+
+    </div><!-- /task-list__main -->
+    </div><!-- /task-list__main-outer -->
+
+    <!-- 완료 텍스트 카드 -->
+    <div class="task-list__export-outer" :class="{ 'task-list__export-outer--collapsed': !showExport }">
+    <div class="task-list__export-card">
+      <div class="task-list__export-header">
+        <span class="task-list__export-title">
+          완료 목록 ({{ displayCompletedTasks.length }}건)
+        </span>
+        <button
+          type="button"
+          class="task-list__export-copy"
+          :class="{ 'task-list__export-copy--done': copyDone }"
+          :disabled="displayCompletedTasks.length === 0"
+          :title="copyDone ? '복사됨' : '클립보드에 복사'"
+          @click="copyExportText"
+        >
+          <svg v-if="!copyDone" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__export-copy-icon">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__export-copy-icon">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </button>
+      </div>
+      <ol v-if="displayCompletedTasks.length > 0" class="task-list__export-list">
+        <li v-for="t in displayCompletedTasks" :key="t.id">{{ t.title }}</li>
+      </ol>
+      <p v-else class="task-list__export-empty">완료된 업무가 없습니다.</p>
+    </div><!-- /task-list__export-card -->
+    </div><!-- /task-list__export-outer -->
+
   </div>
 </template>
 
@@ -456,6 +507,20 @@ function taskMatchesDayFilter(task: Task): boolean {
 const displayIncompleteTasks = computed(() => taskStore.incompleteTasks.filter(taskMatchesDayFilter))
 
 const displayCompletedTasks = computed(() => taskStore.completedTasks.filter(taskMatchesDayFilter))
+
+// 완료 리스트 텍스트 내보내기
+const showExport = ref(false)
+const copyDone = ref(false)
+
+const exportText = computed(() =>
+  displayCompletedTasks.value.map((t, i) => `${i + 1}. ${t.title}`).join('\n')
+)
+
+async function copyExportText() {
+  await navigator.clipboard.writeText(exportText.value)
+  copyDone.value = true
+  setTimeout(() => (copyDone.value = false), 1800)
+}
 
 // 새 업무 추가 폼 표시 여부
 const showAddForm = ref(false)
@@ -692,9 +757,149 @@ function handleDeleteClick(taskId: string) {
   height: 20px;
 }
 
+.task-list__header-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.task-list__export-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: $spacing-sm $spacing-md;
+  background: $color-white;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: $color-gray-600;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+
+  &:hover {
+    background: $color-gray-50;
+    border-color: $color-gray-400;
+  }
+
+  &--active {
+    background: $color-gray-100;
+    border-color: $color-gray-400;
+    color: $color-gray-800;
+  }
+
+  &-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// grid-template-rows 트릭: 높이를 0fr ↔ 1fr 로 자연스럽게 애니메이션
+// 내부 콘텐츠에 overflow:hidden 이 있어야 clipping 됨
+.task-list__main-outer,
+.task-list__export-outer {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  > * {
+    overflow: hidden;
+    min-height: 0;
+    // 내부 콘텐츠 opacity + 미세 이동
+    transition:
+      opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  &--collapsed {
+    grid-template-rows: 0fr;
+
+    > * {
+      opacity: 0;
+    }
+  }
+}
+
+// 방향감: 기존 목록은 위로, 카드는 아래에서
+.task-list__main-outer--collapsed > * {
+  transform: translateY(-10px);
+}
+.task-list__export-outer > * {
+  transform: translateY(0);
+}
+.task-list__export-outer--collapsed > * {
+  transform: translateY(10px);
+}
+
+.task-list__export-card {
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-lg;
+  background: $color-white;
+  padding: $spacing-md;
+}
+
+.task-list__export-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-sm;
+}
+
+.task-list__export-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: $color-gray-800;
+}
+
+.task-list__export-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-gray-500;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: $color-gray-100;
+    color: $color-gray-800;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  &--done {
+    color: $color-success;
+  }
+
+  &-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.task-list__export-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.8;
+  color: $color-gray-700;
+}
+
+.task-list__export-empty {
+  font-size: 0.875rem;
+  color: $color-gray-400;
+  text-align: center;
+  padding: $spacing-md 0;
+}
+
 .task-list__empty {
   @include flex-center;
-  flex: 1;
+  // flex: 1;
+  min-height: 110px;
   color: $color-gray-500;
   font-size: 0.875rem;
 }
@@ -768,14 +973,14 @@ function handleDeleteClick(taskId: string) {
 
 .task-item {
   @include card;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
   transition: all 0.3s ease;
   min-width: 0;
   // overflow: hidden;
 
   &--selected {
     border-color: $color-primary;
-    background: $color-gray-50;
+    background: $color-white;
   }
 
   &--editing {
@@ -791,8 +996,7 @@ function handleDeleteClick(taskId: string) {
   }
 
   &--completed {
-    opacity: 0.7;
-    background: $color-gray-50;
+    background: $color-white;
     padding: $spacing-xs $spacing-md;
 
     .task-item__view{
