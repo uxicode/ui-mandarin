@@ -95,6 +95,7 @@ defineExpose({ selectedTaskId })
 
   &--tasks {
     min-width: 0;
+    overflow: visible;
   }
 
   &--matrix {
