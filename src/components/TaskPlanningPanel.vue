@@ -6,22 +6,30 @@
         <span class="task-planning__feedback-label">피드백</span>
         <div class="task-planning__intro-wrap">
           <button
+            ref="introBtnRef"
             type="button"
             class="task-planning__intro-btn"
             aria-label="피드백 안내"
-            @mouseenter="showIntroTooltip = true"
-            @mouseleave="showIntroTooltip = false"
-            @focus="showIntroTooltip = true"
-            @blur="showIntroTooltip = false"
+            @mouseenter="openIntroTooltip"
+            @mouseleave="closeIntroTooltip"
+            @focus="openIntroTooltip"
+            @blur="closeIntroTooltip"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__intro-icon">
               <circle cx="12" cy="12" r="10" />
               <path d="M12 16v-4M12 8h.01" stroke-linecap="round" />
             </svg>
           </button>
-          <div class="task-planning__intro-tooltip" :class="{ 'task-planning__intro-tooltip--visible': showIntroTooltip }" role="tooltip">
-            캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
-          </div>
+          <Teleport to="body">
+            <div
+              class="task-planning__intro-tooltip"
+              :class="{ 'task-planning__intro-tooltip--visible': showIntroTooltip }"
+              :style="{ top: introTooltipPos.top + 'px', left: introTooltipPos.left + 'px' }"
+              role="tooltip"
+            >
+              캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
+            </div>
+          </Teleport>
         </div>
       </div>
 
@@ -291,6 +299,23 @@ interface FeedbackSelection {
 
 const showMonthly = ref(false)
 const showIntroTooltip = ref(false)
+const introBtnRef = ref<HTMLButtonElement | null>(null)
+const introTooltipPos = ref({ top: 0, left: 0 })
+
+function openIntroTooltip() {
+  if (introBtnRef.value) {
+    const rect = introBtnRef.value.getBoundingClientRect()
+    introTooltipPos.value = {
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
+    }
+  }
+  showIntroTooltip.value = true
+}
+
+function closeIntroTooltip() {
+  showIntroTooltip.value = false
+}
 
 const selectedFeedback = ref<FeedbackSelection | null>(null)
 
@@ -546,9 +571,8 @@ function onMonthlyTaskNavigate(task: Task) {
 }
 
 .task-planning__intro-tooltip {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 6px);
+  // body 기준 fixed 배치로 overflow 부모 탈출
+  position: fixed;
   transform: translateX(-50%) translateY(-4px);
   width: 220px;
   padding: $spacing-sm $spacing-md;
@@ -558,7 +582,7 @@ function onMonthlyTaskNavigate(task: Task) {
   line-height: 1.5;
   border-radius: $radius-md;
   box-shadow: $shadow-md;
-  z-index: 100;
+  z-index: 9999;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.18s ease, transform 0.18s ease;

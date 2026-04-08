@@ -154,10 +154,10 @@
               </div>
               <div class="task-item__scores">
                 <span class="task-item__score">
-                  중요도: {{ computedScores(task).importanceScore }}
+                  중요도: {{ task.scores.importance }}
                 </span>
                 <span class="task-item__score">
-                  시급성: {{ computedScores(task).urgencyScore }}
+                  시급성: {{ task.scores.urgency }}
                 </span>
                 <span class="task-item__quadrant">사분면: {{ getQuadrant(task) }}</span>
               </div>
@@ -370,10 +370,10 @@
               </div>
               <div class="task-item__scores">
                 <span class="task-item__score">
-                  중요도: {{ computedScores(task).importanceScore }}
+                  중요도: {{ task.scores.importance }}
                 </span>
                 <span class="task-item__score">
-                  시급성: {{ computedScores(task).urgencyScore }}
+                  시급성: {{ task.scores.urgency }}
                 </span>
                 <span class="task-item__quadrant">사분면: {{ getQuadrant(task) }}</span>
               </div>
@@ -820,6 +820,10 @@ function handleDeleteClick(taskId: string) {
   }
 }
 
+.task-list__main {
+  max-height: 840px;
+  overflow-y: auto;
+}
 // 방향감: 기존 목록은 위로, 카드는 아래에서
 .task-list__main-outer--collapsed > * {
   transform: translateY(-10px);
@@ -948,7 +952,8 @@ function handleDeleteClick(taskId: string) {
 .task-list__section {
   margin-bottom: $spacing-xl;
   min-height: 310px;
-  overflow-y: auto;
+  max-height: 840px;
+  // overflow-y: auto;
 
   &--completed {
     margin-top: $spacing-xl;
