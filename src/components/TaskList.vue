@@ -1059,9 +1059,11 @@ function handleDeleteClick(taskId: string) {
   border-left: 3px solid $color-primary;
   transition: all 0.3s ease;
   min-width: 0;
+  border-radius: 4px;
 
   &--selected {
-    border-color: $color-primary;
+    // border-color: $color-primary;
+    border: 3px solid #63f196;;
     background: $color-white;
   }
 

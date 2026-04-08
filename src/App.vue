@@ -10,6 +10,20 @@
           <p class="app__subtitle">감정이 아닌 수치로 업무 우선순위를 시각화</p>
         </div>
         <nav class="app__nav">
+          <a
+            href="https://m-workflow-editor.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="app__nav-workflow-btn"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="app__nav-workflow-icon">
+              <rect x="3" y="3" width="6" height="6" rx="1" />
+              <rect x="15" y="3" width="6" height="6" rx="1" />
+              <rect x="9" y="15" width="6" height="6" rx="1" />
+              <path d="M6 9v3a3 3 0 003 3h6a3 3 0 003-3V9" stroke-linecap="round" />
+            </svg>
+            워크플로우 에디터
+          </a>
           <template v-if="authStore.isAuthenticated">
             <span class="app__nav-user">{{ displayLabel }}</span>
             <RouterLink to="/profile" class="app__nav-link">프로필</RouterLink>
@@ -136,6 +150,33 @@ async function onLogout() {
     color: $color-white;
     border-radius: $radius-md;
   }
+}
+
+.app__nav-workflow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  text-decoration: none;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+  &:hover {
+    background: $color-gray-50;
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+}
+
+.app__nav-workflow-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .app__nav-button {
