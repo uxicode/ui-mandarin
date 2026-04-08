@@ -7,12 +7,26 @@
           type="button"
           class="task-list__export-btn"
           :class="{ 'task-list__export-btn--active': showExport }"
+          :disabled="props.showTimeline"
           @click="showExport = !showExport"
         >
           <svg v-if="showExport" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__export-btn-icon">
             <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           {{ showExport ? '돌아가기' : '완료 리스트 복사' }}
+        </button>
+        <button
+          type="button"
+          class="task-list__timeline-btn"
+          :class="{ 'task-list__timeline-btn--active': props.showTimeline }"
+          @click="emit('toggle-timeline')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-list__timeline-btn-icon">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+          {{ props.showTimeline ? '목록 보기' : '타임라인' }}
         </button>
         <button class="task-list__add-button" @click="handleAddClick">
           <svg
@@ -31,6 +45,15 @@
     </div>
 
     <!-- 새 업무 추가 폼 -->
+    <!-- 타임라인 뷰 -->
+    <TaskTimeline
+      v-if="props.showTimeline"
+      :selected-task-id="props.selectedTaskId"
+      @select="emit('select', $event)"
+    />
+
+    <template v-if="!props.showTimeline">
+
     <TaskForm
       v-if="showAddForm"
       :is-submitting="isAddingTask"
@@ -435,6 +458,8 @@
     </div><!-- /task-list__export-card -->
     </div><!-- /task-list__export-outer -->
 
+    </template><!-- /v-if="!props.showTimeline" -->
+
   </div>
 </template>
 
@@ -454,15 +479,18 @@ import { VueDatePicker } from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import StarRating from './StarRating.vue'
 import TaskForm from './TaskForm.vue'
+import TaskTimeline from './TaskTimeline.vue'
 import type { Task, TaskScores } from '@/types/task'
 
 interface Props {
   selectedTaskId?: string
+  showTimeline?: boolean
 }
 
 interface Emits {
   (e: 'select', taskId: string): void
   (e: 'delete', taskId: string): void
+  (e: 'toggle-timeline'): void
 }
 
 const props = defineProps<Props>()
@@ -764,6 +792,37 @@ function handleDeleteClick(taskId: string) {
   gap: $spacing-sm;
 }
 
+.task-list__timeline-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: $spacing-sm $spacing-md;
+  background: transparent;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: $color-gray-600;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+
+  &:hover {
+    background: $color-gray-50;
+    border-color: $color-gray-400;
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.08);
+    border-color: $color-primary;
+    color: $color-primary-dark;
+    font-weight: 600;
+  }
+
+  &-icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
 .task-list__export-btn {
   display: flex;
   align-items: center;
@@ -791,6 +850,10 @@ function handleDeleteClick(taskId: string) {
   &-icon {
     width: 16px;
     height: 16px;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
 

@@ -52,6 +52,21 @@
           :class="{ 'task-planning__feedback-body--hidden': showMonthly }"
         >
 
+      <!-- 주간 내비게이션 -->
+      <div class="task-planning__week-nav">
+        <button type="button" class="task-planning__week-nav-btn" aria-label="이전 주" @click="shiftWeek(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__week-nav-icon">
+            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <span class="task-planning__week-nav-label">{{ weekRangeLabel }}</span>
+        <button type="button" class="task-planning__week-nav-btn" aria-label="다음 주" @click="shiftWeek(1)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__week-nav-icon">
+            <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+
       <div
         class="task-planning__donuts"
         :class="{
@@ -318,6 +333,17 @@ function closeIntroTooltip() {
 }
 
 const selectedFeedback = ref<FeedbackSelection | null>(null)
+
+function shiftWeek(delta: number) {
+  const d = parseLocalDateKey(feedbackDayKey.value)
+  d.setDate(d.getDate() + delta * 7)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  selectedCalendarDay.value = `${y}-${m}-${day}`
+  calendarStore.calendarView.year = d.getFullYear()
+  calendarStore.calendarView.month = d.getMonth()
+}
 
 const feedbackDayKey = computed(() => selectedCalendarDay.value ?? getTodayLocalDateKey())
 
@@ -662,6 +688,46 @@ function onMonthlyTaskNavigate(task: Task) {
     max-height: 0;
     overflow: hidden;
   }
+}
+
+.task-planning__week-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-sm;
+}
+
+.task-planning__week-nav-label {
+  flex: 1;
+  text-align: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  white-space: nowrap;
+}
+
+.task-planning__week-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: $radius-sm;
+  background: transparent;
+  color: $color-gray-500;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $color-gray-100;
+    color: $color-gray-800;
+  }
+}
+
+.task-planning__week-nav-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .task-planning__donuts {
