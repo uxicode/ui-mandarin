@@ -100,7 +100,7 @@ defineExpose({ selectedTaskId })
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  // overflow: auto;
 
   &--planning {
     @include mobile {

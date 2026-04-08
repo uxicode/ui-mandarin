@@ -3,46 +3,48 @@
     <div class="task-planning__feedback" aria-label="업무 피드백">
       <!-- 헤더 행: 타이틀 + 도움말 아이콘 + 월간 리포트 버튼 -->
       <div class="task-planning__feedback-topbar">
-        <span class="task-planning__feedback-label">피드백</span>
-        <div class="task-planning__intro-wrap">
-          <button
-            ref="introBtnRef"
-            type="button"
-            class="task-planning__intro-btn"
-            aria-label="피드백 안내"
-            @mouseenter="openIntroTooltip"
-            @mouseleave="closeIntroTooltip"
-            @focus="openIntroTooltip"
-            @blur="closeIntroTooltip"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__intro-icon">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" stroke-linecap="round" />
-            </svg>
-          </button>
-          <Teleport to="body">
-            <div
-              class="task-planning__intro-tooltip"
-              :class="{ 'task-planning__intro-tooltip--visible': showIntroTooltip }"
-              :style="{ top: introTooltipPos.top + 'px', left: introTooltipPos.left + 'px' }"
-              role="tooltip"
+        <div class="task-planning__feedback-topbar-left">
+          <span class="task-planning__feedback-label">피드백</span>
+          <div class="task-planning__intro-wrap">
+            <button
+              ref="introBtnRef"
+              type="button"
+              class="task-planning__intro-btn"
+              aria-label="피드백 안내"
+              @mouseenter="openIntroTooltip"
+              @mouseleave="closeIntroTooltip"
+              @focus="openIntroTooltip"
+              @blur="closeIntroTooltip"
             >
-              캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
-            </div>
-          </Teleport>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__intro-icon">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" stroke-linecap="round" />
+              </svg>
+            </button>
+            <Teleport to="body">
+              <div
+                class="task-planning__intro-tooltip"
+                :class="{ 'task-planning__intro-tooltip--visible': showIntroTooltip }"
+                :style="{ top: introTooltipPos.top + 'px', left: introTooltipPos.left + 'px' }"
+                role="tooltip"
+              >
+                캘린더에서 선택한 날 기준으로 일간(진행중·기한초과·완료)과 주간(완료·미완료)을 표시합니다. 미완료가 없으면 칭찬 릴레이가 나와요.
+              </div>
+            </Teleport>
+          </div>
         </div>
-      </div>
 
-      <button
-        type="button"
-        class="task-planning__monthly-btn"
-        @click="showMonthly = !showMonthly"
-      >
-        <svg v-if="showMonthly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__monthly-btn-icon">
-          <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        {{ showMonthly ? '돌아가기' : '월간 리포트' }}
-      </button>
+        <button
+          type="button"
+          class="task-planning__monthly-btn"
+          @click="showMonthly = !showMonthly"
+        >
+          <svg v-if="showMonthly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__monthly-btn-icon">
+            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          {{ showMonthly ? '돌아가기' : '월간 리포트' }}
+        </button>
+      </div>
 
       <!-- 슬라이드 래퍼 -->
       <div class="task-planning__panel-wrap">
@@ -548,16 +550,23 @@ function onMonthlyTaskNavigate(task: Task) {
 
 .task-planning__feedback {
   padding: $spacing-md;
-  border: 1px solid $color-gray-200;
   border-radius: $radius-lg;
   background: $color-white;
+  box-shadow: $shadow-md;
 }
 
 .task-planning__feedback-topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: $spacing-xs;
-  margin-bottom: $spacing-sm;
+  margin-bottom: 1.5rem;
+}
+
+.task-planning__feedback-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
 }
 
 .task-planning__feedback-label {
@@ -640,7 +649,6 @@ function onMonthlyTaskNavigate(task: Task) {
   display: inline-flex;
   align-items: center;
   gap: $spacing-xs;
-  margin-bottom: $spacing-md;
   padding: $spacing-xs $spacing-sm;
   border: 1px solid $color-primary;
   border-radius: $radius-md;
@@ -911,6 +919,10 @@ function onMonthlyTaskNavigate(task: Task) {
 
 .task-planning__calendar {
   min-height: 0;
+  padding: $spacing-md;
+  border-radius: $radius-lg;
+  background: $color-white;
+  box-shadow: $shadow-md;
 }
 
 .task-planning__month-panel {
@@ -919,9 +931,9 @@ function onMonthlyTaskNavigate(task: Task) {
   overflow: auto;
   padding: $spacing-md;
   background: $color-white;
-  border: 1px solid $color-gray-200;
+  // border: 1px solid $color-gray-200;
   border-radius: $radius-lg;
-  box-shadow: $shadow-sm;
+  // box-shadow: $shadow-sm;
 }
 
 .task-planning__month-toolbar {
