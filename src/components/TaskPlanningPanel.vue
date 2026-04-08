@@ -56,14 +56,17 @@
       <div class="task-planning__week-nav">
         <button type="button" class="task-planning__week-nav-btn" aria-label="이전 주" @click="shiftWeek(-1)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__week-nav-icon">
-            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
         <span class="task-planning__week-nav-label">{{ weekRangeLabel }}</span>
         <button type="button" class="task-planning__week-nav-btn" aria-label="다음 주" @click="shiftWeek(1)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__week-nav-icon">
-            <path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M9 18l6-6-6-6" />
           </svg>
+        </button>
+        <button type="button" class="task-planning__week-nav-today" @click="calendarStore.goToToday()">
+          이번주
         </button>
       </div>
 
@@ -693,41 +696,59 @@ function onMonthlyTaskNavigate(task: Task) {
 .task-planning__week-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: $spacing-xs;
-  margin-bottom: $spacing-sm;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  flex-wrap: wrap;
 }
 
 .task-planning__week-nav-label {
   flex: 1;
+  min-width: 0;
   text-align: center;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: $color-gray-700;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $color-gray-900;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-planning__week-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: $radius-sm;
-  background: transparent;
-  color: $color-gray-500;
-  transition: background 0.15s, color 0.15s;
-  flex-shrink: 0;
+  padding: $spacing-xs;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  color: $color-gray-700;
+  cursor: pointer;
+  transition: background 0.2s;
 
   &:hover {
     background: $color-gray-100;
-    color: $color-gray-800;
   }
 }
 
 .task-planning__week-nav-icon {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
+}
+
+.task-planning__week-nav-today {
+  padding: $spacing-xs $spacing-sm;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  background: $color-white;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: $color-gray-100;
+  }
 }
 
 .task-planning__donuts {
