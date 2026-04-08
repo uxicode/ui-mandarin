@@ -307,7 +307,7 @@ function openIntroTooltip() {
     const rect = introBtnRef.value.getBoundingClientRect()
     introTooltipPos.value = {
       top: rect.bottom + 6,
-      left: rect.left + rect.width / 2,
+      left: rect.left + rect.width / 2 + 10,
     }
   }
   showIntroTooltip.value = true
