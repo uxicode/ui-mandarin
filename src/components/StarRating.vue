@@ -127,7 +127,7 @@ onUnmounted(() => {
 }
 
 .star-rating__label {
-  min-width: 120px;
+  min-width: 70px;
   font-size: 0.875rem;
   font-weight: 500;
   color: $color-gray-700;

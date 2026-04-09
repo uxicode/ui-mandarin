@@ -39,7 +39,7 @@
       </div>
 
       <!-- 날짜 컬럼들 -->
-      <div v-else :key="`track-${periodOffset}`" class="task-timeline__track">
+      <div v-else :key="`track-${periodOffset}`" ref="trackRef" class="task-timeline__track" :class="{ 'task-timeline__track--dragging': isDragging }">
         <div
           v-for="col in visibleColumns"
           :key="col.dateKey"
@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useDragScroll } from '@/composables/use-drag-scroll'
 import { useTaskStore } from '@/stores/task-store'
 import type { Task } from '@/types/task'
 
@@ -125,6 +126,8 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const taskStore = useTaskStore()
+
+const { elRef: trackRef, isDragging } = useDragScroll()
 
 // 현재 분기 오프셋 (0 = 이번 분기, -1 = 전 분기, +1 = 다음 분기)
 const periodOffset = ref(0)
@@ -388,6 +391,16 @@ const visibleColumns = computed<TimelineColumn[]>(() => {
   padding-bottom: $spacing-md;
   align-items: flex-start;
   flex: 1;
+  cursor: grab;
+
+  &--dragging {
+    cursor: grabbing;
+
+    // 드래그 중 카드 버튼의 hover 효과 억제
+    .task-timeline__card {
+      pointer-events: none;
+    }
+  }
 
   &::-webkit-scrollbar {
     height: 6px;

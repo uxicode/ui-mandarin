@@ -54,12 +54,14 @@
 
     <template v-if="!props.showTimeline">
 
-    <TaskForm
-      v-if="showAddForm"
-      :is-submitting="isAddingTask"
-      @submit="handleAddSubmit"
-      @cancel="handleAddCancel"
-    />
+    <Transition name="task-form-slide">
+      <TaskForm
+        v-if="showAddForm"
+        :is-submitting="isAddingTask"
+        @submit="handleAddSubmit"
+        @cancel="handleAddCancel"
+      />
+    </Transition>
 
     <!-- 슬라이드 래퍼: 기존 목록 (grid-template-rows 트릭으로 높이 부드럽게) -->
     <div class="task-list__main-outer" :class="{ 'task-list__main-outer--collapsed': showExport }">
@@ -855,6 +857,39 @@ function handleDeleteClick(taskId: string) {
     opacity: 0.4;
     cursor: not-allowed;
   }
+}
+
+// TaskForm 슬라이드 인/아웃 트랜지션
+.task-form-slide-enter-active,
+.task-form-slide-leave-active {
+  overflow: hidden;
+  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease,
+              transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-form-slide-enter-from {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.task-form-slide-enter-to {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.task-form-slide-leave-from {
+  max-height: 600px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.task-form-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 // grid-template-rows 트릭: 높이를 0fr ↔ 1fr 로 자연스럽게 애니메이션
