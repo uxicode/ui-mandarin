@@ -1268,6 +1268,10 @@ function handleDeleteClick(taskId: string) {
     color: #fff;
   }
 
+  .task-item__date-info--deadline & {
+    color: #fff;
+  }
+
   .task-item__date-info--overdue & {
     color: $color-danger;
   }
