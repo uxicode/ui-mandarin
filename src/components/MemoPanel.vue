@@ -142,6 +142,7 @@ const draftBody = ref('')
 /** 저장 시 title: 본문 앞부분 최대 20자(유니코드 스칼라 기준). */
 const MEMO_TITLE_FROM_BODY_MAX = 20
 
+/** 저장·API용 title: 선행 공백 제거 후 유니코드 스칼라 기준 최대 MEMO_TITLE_FROM_BODY_MAX자까지 잘라 반환. */
 function titleFromMemoBody(body: string): string {
   const trimmedStart = body.replace(/^\s+/, '')
   return Array.from(trimmedStart).slice(0, MEMO_TITLE_FROM_BODY_MAX).join('')
@@ -155,20 +156,24 @@ const expandShellRef = ref<HTMLElement | null>(null)
 const MODAL_WIDTH_MIN = 400
 const MODAL_HEIGHT_MIN = 280
 
+/** 확대 모달 너비 상한(뷰포트 기준, 최대 1200px). SSR 시 1200. */
 function modalWidthMax(): number {
   if (typeof window === 'undefined') return 1200
   return Math.min(1200, window.innerWidth - 32)
 }
 
+/** 확대 모달 높이 상한(뷰포트 기준, 최대 900px). SSR 시 900. */
 function modalHeightMax(): number {
   if (typeof window === 'undefined') return 900
   return Math.min(900, window.innerHeight - 32)
 }
 
+/** 모달 너비를 최소·최대 범위로 클램프. */
 function clampModalWidth(w: number): number {
   return Math.max(MODAL_WIDTH_MIN, Math.min(modalWidthMax(), w))
 }
 
+/** 모달 높이를 최소·최대 범위로 클램프. */
 function clampModalHeight(h: number): number {
   return Math.max(MODAL_HEIGHT_MIN, Math.min(modalHeightMax(), h))
 }
@@ -176,10 +181,12 @@ function clampModalHeight(h: number): number {
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let gripUp: (() => void) | null = null
 
+/** 확대 레이어 열린 상태에서 Escape로 닫기. */
 function onExpandedEscape(e: KeyboardEvent) {
   if (e.key === 'Escape') closeExpanded()
 }
 
+/** 현재 메모 저장 반영 후 확대 모달을 연다. 크기 클램프 후 포커스 이동. */
 async function openExpanded() {
   flushSave()
   if (!memoStore.selectedMemoId) return
@@ -190,21 +197,25 @@ async function openExpanded() {
   expandShellRef.value?.focus()
 }
 
+/** 저장 후 확대 모달을 닫는다. */
 function closeExpanded() {
   flushSave()
   showExpanded.value = false
 }
 
+/** 좌/우 그립 드래그로 모달 너비 조절. */
 function onGripStart(edge: 'left' | 'right', e: MouseEvent) {
   if (gripUp) gripUp()
   const startX = e.clientX
   const startW = modalWidthPx.value
 
+  /** 마우스 이동 시 너비 갱신. */
   function onMove(ev: MouseEvent) {
     const dx = ev.clientX - startX
     modalWidthPx.value = clampModalWidth(edge === 'right' ? startW + dx : startW - dx)
   }
 
+  /** 드래그 종료 시 리스너·커서 정리. */
   function onUp() {
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
@@ -229,6 +240,7 @@ const CORNER_CURSOR: Record<CornerGrip, string> = {
   sw: 'nesw-resize',
 }
 
+/** 모서리 드래그로 너비·높이 동시 조절. */
 function onCornerGripStart(corner: CornerGrip, e: MouseEvent) {
   if (gripUp) gripUp()
   const startX = e.clientX
@@ -236,6 +248,7 @@ function onCornerGripStart(corner: CornerGrip, e: MouseEvent) {
   const startW = modalWidthPx.value
   const startH = modalHeightPx.value
 
+  /** 코너 방향에 따라 크기 계산 후 클램프. */
   function onMove(ev: MouseEvent) {
     const dx = ev.clientX - startX
     const dy = ev.clientY - startY
@@ -258,6 +271,7 @@ function onCornerGripStart(corner: CornerGrip, e: MouseEvent) {
     modalHeightPx.value = clampModalHeight(h)
   }
 
+  /** 드래그 종료 시 리스너·커서 정리. */
   function onUp() {
     document.removeEventListener('mousemove', onMove)
     document.removeEventListener('mouseup', onUp)
@@ -273,11 +287,13 @@ function onCornerGripStart(corner: CornerGrip, e: MouseEvent) {
   gripUp = onUp
 }
 
+/** 창 크기 변경 시 모달 크기가 화면 밖으로 나가지 않게 재클램프. */
 function onWindowResize() {
   modalWidthPx.value = clampModalWidth(modalWidthPx.value)
   modalHeightPx.value = clampModalHeight(modalHeightPx.value)
 }
 
+/** 확대 모달 열림 시 body 스크롤 잠금 및 Escape 리스너 등록. */
 watch(showExpanded, (open) => {
   if (typeof document === 'undefined') return
   document.body.style.overflow = open ? 'hidden' : ''
@@ -285,6 +301,7 @@ watch(showExpanded, (open) => {
   else document.removeEventListener('keydown', onExpandedEscape)
 })
 
+/** 선택된 메모가 바뀌면 편집 초안(draftBody)을 동기화. */
 watch(
   selectedMemo,
   (m) => {
@@ -293,6 +310,7 @@ watch(
   { immediate: true }
 )
 
+/** 사이드바 목록에 표시할 한 줄 제목(본문 미리보기 또는 저장 title). */
 function listTitle(m: Memo): string {
   const s = (m.body ?? '').replace(/^\s+/, '')
   if (!s) {
@@ -305,6 +323,7 @@ function listTitle(m: Memo): string {
   return chars.length > max ? `${preview}…` : preview
 }
 
+/** updatedAt 등 ISO 문자열을 M/D 형태로 짧게 표시. */
 function formatShortDate(iso: string): string {
   try {
     const d = new Date(iso)
@@ -314,18 +333,20 @@ function formatShortDate(iso: string): string {
   }
 }
 
+/** 에디터 초안이 스토어의 본문과 동일한지. */
 function isDraftUnchanged(): boolean {
   const m = selectedMemo.value
   if (!m) return true
   return draftBody.value === m.body
 }
 
+/** 다른 행 선택 전 현재 메모를 저장하고 id로 선택 전환. */
 function selectMemoRow(id: string) {
   flushSave()
   memoStore.selectMemo(id)
-  memoStore.pinMemoToTop(id)
 }
 
+/** 입력 디바운스(450ms) 후 변경 있을 때만 saveMemo 호출. */
 function scheduleSave() {
   const id = memoStore.selectedMemoId
   if (!id) return
@@ -340,6 +361,7 @@ function scheduleSave() {
   }, 450)
 }
 
+/** 타이머 취소 후 즉시 저장(블러·전환·닫기 등). */
 function flushSave() {
   const id = memoStore.selectedMemoId
   if (!id) return
@@ -354,11 +376,13 @@ function flushSave() {
   })
 }
 
+/** 빈 메모 추가 전 기존 편집분 저장. */
 async function onNewMemo() {
   flushSave()
   await memoStore.addMemo({ title: '', body: '' })
 }
 
+/** 삭제 전 저장 후 removeMemo. */
 async function onDeleteMemo() {
   const id = memoStore.selectedMemoId
   if (!id) return
@@ -366,11 +390,13 @@ async function onDeleteMemo() {
   await memoStore.removeMemo(id)
 }
 
+/** 마운트 시 메모 목록 로드 및 리사이즈 리스너 등록. */
 onMounted(() => {
   void memoStore.fetchMemos()
   window.addEventListener('resize', onWindowResize)
 })
 
+/** 리스너·body 스크롤·진행 중 드래그 정리. */
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   document.removeEventListener('keydown', onExpandedEscape)
@@ -451,6 +477,19 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  position: relative;
+  >li{
+    position: relative;
+    &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #d1d5db 30%, #d1d5db 70%, transparent);
+    }
+  }
 }
 
 .memo-panel__list-item {
@@ -478,6 +517,7 @@ onBeforeUnmount(() => {
     border-left-color: $color-primary;
     font-weight: 600;
   }
+  
 }
 
 .memo-panel__list-title {
