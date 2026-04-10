@@ -6,17 +6,15 @@
         <button type="button" class="memo-panel__new-btn" @click="onNewMemo">
           새 메모
         </button>
-        <div v-if="memoStore.isLoading && memoStore.memos.length === 0" class="memo-panel__sidebar-loading" aria-busy="true">
+        <div v-if="memoStore.isLoading && memoStore.memos.length === 0" class="memo-panel__sidebar-loading"
+          aria-busy="true">
           불러오는 중…
         </div>
         <ul v-else class="memo-panel__list" role="list">
           <li v-for="m in memoStore.memos" :key="m.id">
-            <button
-              type="button"
-              class="memo-panel__list-item"
+            <button type="button" class="memo-panel__list-item"
               :class="{ 'memo-panel__list-item--active': memoStore.selectedMemoId === m.id }"
-              @click="selectMemoRow(m.id)"
-            >
+              @click="selectMemoRow(m.id)">
               <span class="memo-panel__list-title">{{ listTitle(m) }}</span>
               <span class="memo-panel__list-meta">{{ formatShortDate(m.updatedAt) }}</span>
             </button>
@@ -27,29 +25,20 @@
       <div class="memo-panel__editor-wrap">
         <template v-if="memoStore.selectedMemo">
           <div class="memo-panel__editor-toolbar">
-            <button
-              type="button"
-              class="memo-panel__icon-btn"
-              aria-label="메모 확대 보기"
-              title="메모 확대 보기"
-              @click="openExpanded"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memo-panel__icon-svg" aria-hidden="true">
-                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M3 9V3h6M21 15v6h-6" stroke-linecap="round" stroke-linejoin="round" />
+            <button type="button" class="memo-panel__icon-btn" aria-label="메모 확대 보기" title="메모 확대 보기"
+              @click="openExpanded">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" class="memo-panel__icon-svg" aria-hidden="true">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M3 9V3h6M21 15v6h-6" stroke-linecap="round"
+                  stroke-linejoin="round" />
               </svg>
             </button>
             <button type="button" class="memo-panel__delete-btn" @click="onDeleteMemo">
               삭제
             </button>
           </div>
-          <textarea
-            v-model="draftBody"
-            class="memo-panel__body-input"
-            placeholder="메모 내용"
-            rows="12"
-            @input="scheduleSave"
-            @blur="flushSave"
-          />
+          <textarea v-model="draftBody" class="memo-panel__body-input" placeholder="메모 내용" rows="12"
+            @input="scheduleSave" @blur="flushSave" />
         </template>
         <p v-else class="memo-panel__placeholder">
           목록에서 메모를 선택하거나 새 메모를 만드세요.
@@ -58,70 +47,35 @@
     </div>
 
     <Teleport to="body">
-      <div
-        v-if="showExpanded"
-        class="memo-expand-backdrop"
-      >
-        <div
-          ref="expandShellRef"
-          class="memo-expand-shell"
-          tabindex="-1"
-          :style="{ width: `${modalWidthPx}px`, height: `${modalHeightPx}px` }"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="memo-expand-title"
-        >
-          <div
-            class="memo-expand__grip memo-expand__grip--left"
-            title="너비 조절"
-            @mousedown.prevent="onGripStart('left', $event)"
-          />
+      <div v-if="showExpanded" class="memo-expand-backdrop">
+        <div ref="expandShellRef" class="memo-expand-shell" tabindex="-1"
+          :style="{ width: `${modalWidthPx}px`, height: `${modalHeightPx}px` }" role="dialog" aria-modal="true"
+          aria-labelledby="memo-expand-title">
+          <div class="memo-expand__grip memo-expand__grip--left" title="너비 조절"
+            @mousedown.prevent="onGripStart('left', $event)" />
           <div class="memo-expand__inner">
             <div class="memo-expand__header">
               <h4 id="memo-expand-title" class="memo-expand__title">메모</h4>
               <button type="button" class="memo-expand__close" aria-label="닫기" @click="closeExpanded">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memo-expand__close-svg">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" class="memo-expand__close-svg">
                   <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
                 </svg>
               </button>
             </div>
-            <textarea
-              v-model="draftBody"
-              class="memo-expand__body-input"
-              placeholder="메모 내용"
-              @input="scheduleSave"
-              @blur="flushSave"
-            />
+            <textarea v-model="draftBody" class="memo-expand__body-input" placeholder="메모 내용" @input="scheduleSave"
+              @blur="flushSave" />
           </div>
-          <div
-            class="memo-expand__grip memo-expand__grip--right"
-            title="너비 조절"
-            @mousedown.prevent="onGripStart('right', $event)"
-          />
-          <div
-            class="memo-expand__corner memo-expand__corner--nw"
-            title="크기 조절"
-            aria-hidden="true"
-            @mousedown.prevent="onCornerGripStart('nw', $event)"
-          />
-          <div
-            class="memo-expand__corner memo-expand__corner--ne"
-            title="크기 조절"
-            aria-hidden="true"
-            @mousedown.prevent="onCornerGripStart('ne', $event)"
-          />
-          <div
-            class="memo-expand__corner memo-expand__corner--sw"
-            title="크기 조절"
-            aria-hidden="true"
-            @mousedown.prevent="onCornerGripStart('sw', $event)"
-          />
-          <div
-            class="memo-expand__corner memo-expand__corner--se"
-            title="크기 조절"
-            aria-hidden="true"
-            @mousedown.prevent="onCornerGripStart('se', $event)"
-          />
+          <div class="memo-expand__grip memo-expand__grip--right" title="너비 조절"
+            @mousedown.prevent="onGripStart('right', $event)" />
+          <div class="memo-expand__corner memo-expand__corner--nw" title="크기 조절" aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('nw', $event)" />
+          <div class="memo-expand__corner memo-expand__corner--ne" title="크기 조절" aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('ne', $event)" />
+          <div class="memo-expand__corner memo-expand__corner--sw" title="크기 조절" aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('sw', $event)" />
+          <div class="memo-expand__corner memo-expand__corner--se" title="크기 조절" aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('se', $event)" />
         </div>
       </div>
     </Teleport>
@@ -478,16 +432,18 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   position: relative;
-  >li{
+
+  >li {
     position: relative;
+
     &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #d1d5db 30%, #d1d5db 70%, transparent);
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, transparent, #d1d5db 30%, #d1d5db 70%, transparent);
     }
   }
 }
@@ -517,7 +473,7 @@ onBeforeUnmount(() => {
     border-left-color: $color-primary;
     font-weight: 600;
   }
-  
+
 }
 
 .memo-panel__list-title {
