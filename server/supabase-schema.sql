@@ -61,3 +61,46 @@ CREATE POLICY "tasks_update_own"
 CREATE POLICY "tasks_delete_own"
   ON tasks FOR DELETE
   USING (auth.uid() = user_id);
+
+-- memos (same RLS pattern as tasks)
+CREATE TABLE IF NOT EXISTS memos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL DEFAULT '',
+  body TEXT NOT NULL DEFAULT '',
+  user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS update_memos_updated_at ON memos;
+CREATE TRIGGER update_memos_updated_at
+  BEFORE UPDATE ON memos
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_memos_user_id ON memos(user_id);
+CREATE INDEX IF NOT EXISTS idx_memos_updated_at ON memos(updated_at DESC);
+
+ALTER TABLE memos ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "memos_select_own" ON memos;
+DROP POLICY IF EXISTS "memos_insert_own" ON memos;
+DROP POLICY IF EXISTS "memos_update_own" ON memos;
+DROP POLICY IF EXISTS "memos_delete_own" ON memos;
+
+CREATE POLICY "memos_select_own"
+  ON memos FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "memos_insert_own"
+  ON memos FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "memos_update_own"
+  ON memos FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "memos_delete_own"
+  ON memos FOR DELETE
+  USING (auth.uid() = user_id);

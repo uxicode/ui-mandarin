@@ -20,6 +20,12 @@ export interface WeeklyFeedbackResult {
   incompleteInWeek: Task[]
 }
 
+/** 해당 월과 일정이 겹치는 업무를 완료·미완료로 반환 */
+export interface MonthlyFeedbackResult {
+  completedInMonth: Task[]
+  incompleteInMonth: Task[]
+}
+
 const DAILY_PRAISE_POOL = [
   '오늘 마감인 업무를 모두 처리했어요. 잘 지키고 있어요!',
   '마감 일정을 지켰어요. 꾸준함이 멋져요!',
@@ -40,6 +46,20 @@ const DAILY_ALL_CLEAR_POOL = [
   '처리할 미완료가 없어요. 훌륭해요!',
   '오늘도 빈틈 없이 정리됐어요. 잘하고 있어요!',
   '밀린 일 없이 가볍게 지나가요. 멋져요!',
+] as const
+
+const MONTHLY_PRAISE_POOL = [
+  '이번 달 마감 일정을 모두 맞췄어요. 훌륭해요!',
+  '한 달 동안 일정을 잘 지켰어요. 대단해요!',
+  '이번 달 마감을 모두 처리했어요. 리듬이 좋아요!',
+  '월간 우선순위를 잘 지키고 있어요. 칭찬 릴레이 이어가요!',
+] as const
+
+const MONTHLY_ALL_CLEAR_POOL = [
+  '이번 달 기준 미완료가 없어요. 참 잘했어요!',
+  '이번 달도 빈틈 없이 정리됐어요. 대단해요!',
+  '월간 일정이 깔끔해요. 계속 이어가요!',
+  '밀림 없이 한 달을 마무리했어요. 훌륭해요!',
 ] as const
 
 const WEEKLY_ALL_CLEAR_POOL = [
@@ -71,6 +91,14 @@ export function pickDailyAllClearMessage(dateKey: string): string {
 export function pickWeeklyAllClearMessage(weekStartKey: string, weekEndKey: string): string {
   const k = `${weekStartKey}:${weekEndKey}:weekly-all-clear`
   return WEEKLY_ALL_CLEAR_POOL[hashPick(k, WEEKLY_ALL_CLEAR_POOL.length)]!
+}
+
+export function pickMonthlyPraiseMessage(year: number, month: number): string {
+  return MONTHLY_PRAISE_POOL[hashPick(`${year}-${month}:monthly`, MONTHLY_PRAISE_POOL.length)]!
+}
+
+export function pickMonthlyAllClearMessage(year: number, month: number): string {
+  return MONTHLY_ALL_CLEAR_POOL[hashPick(`${year}-${month}:monthly-all-clear`, MONTHLY_ALL_CLEAR_POOL.length)]!
 }
 
 /** 마감일(로컬)이 해당 날짜인 업무 */
@@ -158,6 +186,41 @@ export function computeWeeklyFeedback(
     completedInWeek: inWeek.filter((t) => t.completed),
     incompleteInWeek: inWeek.filter((t) => !t.completed),
   }
+}
+
+export function taskOverlapsMonth(task: Task, year: number, month: number): boolean {
+  const keys = getTaskSpanDateKeys(task)
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  if (keys.length === 0) {
+    const r = resolveTaskCalendarDateKey(task)
+    return r.startsWith(prefix)
+  }
+  return keys.some((k) => k.startsWith(prefix))
+}
+
+export function computeMonthlyFeedback(
+  tasks: Task[],
+  year: number,
+  month: number
+): MonthlyFeedbackResult {
+  const inMonth = tasks.filter((t) => taskOverlapsMonth(t, year, month))
+  return {
+    completedInMonth: inMonth.filter((t) => t.completed),
+    incompleteInMonth: inMonth.filter((t) => !t.completed),
+  }
+}
+
+/** 월간 칭찬: 해당 월에 마감이 있는 업무가 있고, 해당 월 미완료가 없음 */
+export function shouldShowMonthlyPraise(tasks: Task[], year: number, month: number): boolean {
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+  const hadDeadlineInMonth = tasks.some((t) => {
+    if (!t.deadline) return false
+    const k = isoToLocalDateKey(t.deadline)
+    return k !== null && k.startsWith(prefix)
+  })
+  if (!hadDeadlineInMonth) return false
+  const { incompleteInMonth } = computeMonthlyFeedback(tasks, year, month)
+  return incompleteInMonth.length === 0
 }
 
 /** 주간 칭찬: 금주에 마감이 있는 업무가 있고, 금주 미완료가 없음 */

@@ -1,4 +1,5 @@
 import type { Task } from '@/types/task'
+import type { Memo } from '@/types/memo'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
@@ -12,6 +13,14 @@ interface ApiResponse<T> {
   error?: string
 }
 
+interface SupabaseMemo {
+  id: string
+  title: string
+  body: string
+  created_at: string
+  updated_at: string
+}
+
 interface SupabaseTask {
   id: string
   title: string
@@ -23,6 +32,16 @@ interface SupabaseTask {
   completed: boolean
   created_at: string
   updated_at: string
+}
+
+function transformSupabaseMemo(row: SupabaseMemo): Memo {
+  return {
+    id: row.id,
+    title: row.title ?? '',
+    body: row.body ?? '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
 }
 
 function transformSupabaseTask(task: SupabaseTask): Task {
@@ -113,6 +132,51 @@ export const apiService = {
       ...fetchDefaults,
     })
 
+    await handleResponse<void>(response)
+  },
+
+  async getMemos(): Promise<Memo[]> {
+    const response = await fetch(`${API_BASE_URL}/memos`, {
+      ...fetchDefaults,
+    })
+    const rows = await handleResponse<SupabaseMemo[]>(response)
+    return rows.map(transformSupabaseMemo)
+  },
+
+  async createMemo(partial: { title?: string; body?: string }): Promise<Memo> {
+    const response = await fetch(`${API_BASE_URL}/memos`, {
+      method: 'POST',
+      ...fetchDefaults,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: partial.title ?? '',
+        body: partial.body ?? '',
+      }),
+    })
+    const row = await handleResponse<SupabaseMemo>(response)
+    return transformSupabaseMemo(row)
+  },
+
+  async updateMemo(id: string, updates: { title?: string; body?: string }): Promise<Memo> {
+    const body: Record<string, string> = {}
+    if (updates.title !== undefined) body.title = updates.title
+    if (updates.body !== undefined) body.body = updates.body
+
+    const response = await fetch(`${API_BASE_URL}/memos/${id}`, {
+      method: 'PUT',
+      ...fetchDefaults,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const row = await handleResponse<SupabaseMemo>(response)
+    return transformSupabaseMemo(row)
+  },
+
+  async deleteMemo(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/memos/${id}`, {
+      method: 'DELETE',
+      ...fetchDefaults,
+    })
     await handleResponse<void>(response)
   },
 

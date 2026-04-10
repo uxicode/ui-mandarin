@@ -1,7 +1,7 @@
 <template>
   <div class="task-planning">
     <div class="task-planning__feedback" aria-label="업무 피드백">
-      <!-- 헤더 행: 타이틀 + 도움말 아이콘 + 월간 리포트 버튼 -->
+      <!-- 헤더 행: 타이틀 + 도움말 아이콘 + 연간 리포트 버튼 -->
       <div class="task-planning__feedback-topbar">
         <div class="task-planning__feedback-topbar-left">
           <span class="task-planning__feedback-label">피드백</span>
@@ -34,16 +34,31 @@
           </div>
         </div>
 
-        <button
-          type="button"
-          class="task-planning__monthly-btn"
-          @click="showMonthly = !showMonthly"
-        >
-          <svg v-if="showMonthly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__monthly-btn-icon">
-            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          {{ showMonthly ? '돌아가기' : '월간 리포트' }}
-        </button>
+        <div class="task-planning__feedback-topbar-actions">
+          <button
+            type="button"
+            class="task-planning__calendar-toggle-btn"
+            :class="{ 'task-planning__calendar-toggle-btn--active': showCalendarPanel }"
+            :aria-expanded="showCalendarPanel ? 'true' : 'false'"
+            :aria-label="showCalendarPanel ? '달력 닫기' : '달력 펼치기'"
+            aria-controls="task-planning-calendar-panel"
+            @click="showCalendarPanel = !showCalendarPanel"
+          >
+            {{ showCalendarPanel ? '닫기' : '달력' }}
+          </button>
+          <button
+            type="button"
+            class="task-planning__monthly-btn"
+            :aria-expanded="showMonthly ? 'true' : 'false'"
+            :aria-label="showMonthly ? '피드백으로 돌아가기' : '연간 리포트 보기'"
+            @click="showMonthly = !showMonthly"
+          >
+            <svg v-if="showMonthly" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__monthly-btn-icon">
+              <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            {{ showMonthly ? '돌아가기' : '연간 리포트' }}
+          </button>
+        </div>
       </div>
 
       <!-- 슬라이드 래퍼 -->
@@ -54,7 +69,64 @@
           :class="{ 'task-planning__feedback-body--hidden': showMonthly }"
         >
 
-      <!-- 주간 내비게이션 -->
+      <!-- 달력 펼치면 주간 내비·도넛이 아래로 슬라이드 -->
+      <div
+        class="task-planning__calendar-outer"
+        :class="{ 'task-planning__calendar-outer--open': showCalendarPanel }"
+      >
+        <div class="task-planning__calendar-inner">
+          <div
+            id="task-planning-calendar-panel"
+            class="task-planning__calendar"
+            role="region"
+            aria-labelledby="task-planning-month-calendar-title"
+          >
+            <div class="task-planning__month-panel">
+              <div class="task-planning__month-toolbar">
+                <button type="button" class="task-planning__month-nav" aria-label="이전 달" @click="calendarStore.shiftCalendarMonth(-1)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__month-nav-icon">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <h3 id="task-planning-month-calendar-title" class="task-planning__month-title">{{ calendarMonthTitle }}</h3>
+                <button type="button" class="task-planning__month-nav" aria-label="다음 달" @click="calendarStore.shiftCalendarMonth(1)">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__month-nav-icon">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+                <button type="button" class="task-planning__month-today" aria-label="오늘 날짜로 이동" @click="calendarStore.goToToday()">
+                  today
+                </button>
+              </div>
+              <div class="task-planning__month-weekdays" aria-hidden="true">
+                <span v-for="label in monthWeekdayLabels" :key="label" class="task-planning__month-weekday-label">{{ label }}</span>
+              </div>
+              <div class="task-planning__month-grid">
+                <button
+                  v-for="(mcell, idx) in monthGridCells"
+                  :key="mcell.dateKey + '-' + idx"
+                  type="button"
+                  class="task-planning__month-cell"
+                  :class="{
+                    'task-planning__month-cell--outside': !mcell.inMonth,
+                    'task-planning__month-cell--selected': selectedCalendarDay === mcell.dateKey,
+                  }"
+                  :aria-label="monthCellAriaLabel(mcell)"
+                  :aria-pressed="selectedCalendarDay === mcell.dateKey ? 'true' : 'false'"
+                  @click="calendarStore.setSelectedDayFromMonth(mcell)"
+                >
+                  <span class="task-planning__month-cell-num">{{ mcell.dayOfMonth }}</span>
+                  <span class="task-planning__month-cell-dots" aria-hidden="true">
+                    <span v-if="getDotCountForDateKey(mcell.dateKey) >= 1" class="task-planning__week-dot" />
+                    <span v-if="getDotCountForDateKey(mcell.dateKey) >= 2" class="task-planning__week-dot" />
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="task-planning__week-nav">
         <button type="button" class="task-planning__week-nav-btn" aria-label="이전 주" @click="shiftWeek(-1)">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__week-nav-icon">
@@ -74,9 +146,10 @@
 
       <div
         class="task-planning__donuts"
+
         :class="{
-          'task-planning__donuts--daily-only': !showWeeklyFeedbackChart,
-          'task-planning__donuts--both': showWeeklyFeedbackChart,
+          'task-planning__donuts--one':   !showWeeklyFeedbackChart,
+          'task-planning__donuts--three':  showWeeklyFeedbackChart,
         }"
       >
         <FeedbackDonut
@@ -134,10 +207,40 @@
             </div>
           </div>
         </template>
+
+        <!-- 월간 슬롯 -->
+        <template v-if="showWeeklyFeedbackChart">
+          <FeedbackDonut
+            v-if="monthlyUseDonut"
+            title="월간"
+            :subtitle="monthlyLabel"
+            :segments="monthlyDonutSegments"
+            :selected-key="selectedFeedback?.scope === 'monthly' ? selectedFeedback.key : null"
+            @segment-click="onMonthlySegmentClick"
+          />
+          <div v-else-if="monthlyNoSchedule" class="task-planning__feedback-slot-empty" role="status">
+            <h4 class="task-planning__relay-title">월간</h4>
+            <p class="task-planning__relay-sub">{{ monthlyLabel }}</p>
+            <p class="task-planning__slot-empty-text">이번 달에 배정된 일정이 없어요.</p>
+          </div>
+          <div v-else-if="monthlyShowRelay" class="task-planning__relay" role="status" aria-live="polite">
+            <h4 class="task-planning__relay-title">월간</h4>
+            <p class="task-planning__relay-sub">{{ monthlyLabel }}</p>
+            <div class="task-planning__praise-card">
+              <span class="task-planning__check-badge" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="task-planning__check-svg">
+                  <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <p v-if="monthlyCompletedCount > 0" class="task-planning__relay-meta">완료 {{ monthlyCompletedCount }}건 · 미완료 없음</p>
+              <p class="task-planning__feedback-praise-text">{{ monthlyRelayBody }}</p>
+            </div>
+          </div>
+        </template>
       </div>
 
       <div
-        v-if="dailyUseDonut || weeklyUseDonut"
+        v-if="dailyUseDonut || weeklyUseDonut || monthlyUseDonut"
         class="task-planning__feedback-detail"
         role="region"
         :aria-label="detailAriaLabel"
@@ -179,7 +282,7 @@
           </template>
         </template>
 
-        <template v-else>
+        <template v-else-if="selectedFeedback.scope === 'weekly'">
           <template v-if="selectedFeedback.key === 'completed'">
             <p class="task-planning__detail-heading">주간 완료 ({{ weeklyFeedback.completedInWeek.length }}건)</p>
             <ul v-if="weeklyFeedback.completedInWeek.length > 0" class="task-planning__feedback-list">
@@ -202,11 +305,35 @@
             <p class="task-planning__feedback-neutral">항목을 선택해 주세요.</p>
           </template>
         </template>
+
+        <template v-else-if="selectedFeedback.scope === 'monthly'">
+          <template v-if="selectedFeedback.key === 'completed'">
+            <p class="task-planning__detail-heading">월간 완료 ({{ monthlyFeedback.completedInMonth.length }}건)</p>
+            <ul v-if="monthlyFeedback.completedInMonth.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in monthlyFeedback.completedInMonth" :key="t.id">
+                <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
+              </li>
+            </ul>
+            <p v-else class="task-planning__feedback-neutral">해당 항목이 없습니다.</p>
+          </template>
+          <template v-else-if="selectedFeedback.key === 'incomplete'">
+            <p class="task-planning__detail-heading">월간 미완료 ({{ monthlyFeedback.incompleteInMonth.length }}건)</p>
+            <ul v-if="monthlyFeedback.incompleteInMonth.length > 0" class="task-planning__feedback-list">
+              <li v-for="t in monthlyFeedback.incompleteInMonth" :key="t.id">
+                <button type="button" class="task-planning__feedback-task" @click="emit('select', t.id)">{{ t.title }}</button>
+              </li>
+            </ul>
+            <p v-else class="task-planning__feedback-neutral">해당 항목이 없습니다.</p>
+          </template>
+          <template v-else>
+            <p class="task-planning__feedback-neutral">항목을 선택해 주세요.</p>
+          </template>
+        </template>
         </div>
         </div>
         <!-- // .task-planning__feedback-body -->
 
-        <!-- 월간 리포트 -->
+        <!-- 연간 리포트 -->
         <MonthlyReport
           class="task-planning__monthly-wrap"
           :class="{ 'task-planning__monthly-wrap--hidden': !showMonthly }"
@@ -217,54 +344,7 @@
       <!-- // .task-planning__panel-wrap -->
     </div>
 
-    <div class="task-planning__calendar">
-      <div
-        class="task-planning__month-panel"
-        role="region"
-        aria-labelledby="task-planning-month-calendar-title"
-      >
-        <div class="task-planning__month-toolbar">
-          <button type="button" class="task-planning__month-nav" aria-label="이전 달" @click="calendarStore.shiftCalendarMonth(-1)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__month-nav-icon">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <h3 id="task-planning-month-calendar-title" class="task-planning__month-title">{{ calendarMonthTitle }}</h3>
-          <button type="button" class="task-planning__month-nav" aria-label="다음 달" @click="calendarStore.shiftCalendarMonth(1)">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-planning__month-nav-icon">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-          </button>
-          <button type="button" class="task-planning__month-today" aria-label="오늘 날짜로 이동" @click="calendarStore.goToToday()">
-            today
-          </button>
-        </div>
-        <div class="task-planning__month-weekdays" aria-hidden="true">
-          <span v-for="label in monthWeekdayLabels" :key="label" class="task-planning__month-weekday-label">{{ label }}</span>
-        </div>
-        <div class="task-planning__month-grid">
-          <button
-            v-for="(mcell, idx) in monthGridCells"
-            :key="mcell.dateKey + '-' + idx"
-            type="button"
-            class="task-planning__month-cell"
-            :class="{
-              'task-planning__month-cell--outside': !mcell.inMonth,
-              'task-planning__month-cell--selected': selectedCalendarDay === mcell.dateKey,
-            }"
-            :aria-label="monthCellAriaLabel(mcell)"
-            :aria-pressed="selectedCalendarDay === mcell.dateKey ? 'true' : 'false'"
-            @click="calendarStore.setSelectedDayFromMonth(mcell)"
-          >
-            <span class="task-planning__month-cell-num">{{ mcell.dayOfMonth }}</span>
-            <span class="task-planning__month-cell-dots" aria-hidden="true">
-              <span v-if="getDotCountForDateKey(mcell.dateKey) >= 1" class="task-planning__week-dot" />
-              <span v-if="getDotCountForDateKey(mcell.dateKey) >= 2" class="task-planning__week-dot" />
-            </span>
-          </button>
-        </div>
-      </div>
-    </div>
+    <MemoPanel class="task-planning__memo" />
   </div>
 </template>
 
@@ -284,17 +364,23 @@ import {
 import {
   computeDailyFeedback,
   computeWeeklyFeedback,
+  computeMonthlyFeedback,
   shouldShowDailyPraise,
   shouldShowWeeklyPraise,
+  shouldShowMonthlyPraise,
   pickDailyPraiseMessage,
   pickDailyAllClearMessage,
   pickWeeklyPraiseMessage,
   pickWeeklyAllClearMessage,
+  pickMonthlyPraiseMessage,
+  pickMonthlyAllClearMessage,
   taskMatchesSelectedDay,
   taskOverlapsWeek,
+  taskOverlapsMonth,
 } from '@/utils/task-feedback'
 import FeedbackDonut, { type FeedbackDonutSegment } from '@/components/FeedbackDonut.vue'
-import MonthlyReport from '@/components/MonthlyReport.vue'
+import MonthlyReport from '@/components/AnnualReport.vue'
+import MemoPanel from '@/components/MemoPanel.vue'
 import type { Task } from '@/types/task'
 
 interface Emits {
@@ -313,11 +399,16 @@ const COLOR_COMPLETED  = '#22c55e'
 const COLOR_INCOMPLETE = '#f59e0b'
 
 interface FeedbackSelection {
-  scope: 'daily' | 'weekly'
+  scope: 'daily' | 'weekly' | 'monthly'
   key: string
 }
 
 const showMonthly = ref(false)
+const showCalendarPanel = ref(false)
+
+watch(showMonthly, (isMonthly) => {
+  if (isMonthly) showCalendarPanel.value = false
+})
 const showIntroTooltip = ref(false)
 const introBtnRef = ref<HTMLButtonElement | null>(null)
 const introTooltipPos = ref({ top: 0, left: 0 })
@@ -447,9 +538,47 @@ const weeklyDonutSegments = computed((): FeedbackDonutSegment[] => [
   { key: 'incomplete', label: '미완료', count: weeklyFeedback.value.incompleteInWeek.length, color: COLOR_INCOMPLETE },
 ])
 
+// ── 월간 ──────────────────────────────────────────────────
+const feedbackYear  = computed(() => parseLocalDateKey(feedbackDayKey.value).getFullYear())
+const feedbackMonth = computed(() => parseLocalDateKey(feedbackDayKey.value).getMonth())
+
+const monthlyLabel = computed(() => `${feedbackYear.value}년 ${feedbackMonth.value + 1}월`)
+
+const monthlyFeedback = computed(() =>
+  computeMonthlyFeedback(taskStore.tasks, feedbackYear.value, feedbackMonth.value)
+)
+
+const hasMonthlyScheduledTasks = computed(() =>
+  taskStore.tasks.some((t) => taskOverlapsMonth(t, feedbackYear.value, feedbackMonth.value))
+)
+
+const monthlyNoSchedule = computed(() => !hasMonthlyScheduledTasks.value)
+
+const monthlyUseDonut = computed(
+  () => hasMonthlyScheduledTasks.value && monthlyFeedback.value.incompleteInMonth.length > 0
+)
+
+const monthlyShowRelay = computed(
+  () => hasMonthlyScheduledTasks.value && monthlyFeedback.value.incompleteInMonth.length === 0
+)
+
+const monthlyCompletedCount = computed(() => monthlyFeedback.value.completedInMonth.length)
+
+const monthlyRelayBody = computed(() =>
+  shouldShowMonthlyPraise(taskStore.tasks, feedbackYear.value, feedbackMonth.value)
+    ? pickMonthlyPraiseMessage(feedbackYear.value, feedbackMonth.value)
+    : pickMonthlyAllClearMessage(feedbackYear.value, feedbackMonth.value)
+)
+
+const monthlyDonutSegments = computed((): FeedbackDonutSegment[] => [
+  { key: 'completed',  label: '완료',   count: monthlyFeedback.value.completedInMonth.length,  color: COLOR_COMPLETED },
+  { key: 'incomplete', label: '미완료', count: monthlyFeedback.value.incompleteInMonth.length, color: COLOR_INCOMPLETE },
+])
+
 const detailAriaLabel = computed(() => {
   if (!selectedFeedback.value) return '피드백 상세'
-  return selectedFeedback.value.scope === 'daily' ? '일간 피드백 상세' : '주간 피드백 상세'
+  const map = { daily: '일간 피드백 상세', weekly: '주간 피드백 상세', monthly: '월간 피드백 상세' }
+  return map[selectedFeedback.value.scope]
 })
 
 function onDailySegmentClick(key: string) {
@@ -460,17 +589,21 @@ function onWeeklySegmentClick(key: string) {
   selectedFeedback.value = { scope: 'weekly', key }
 }
 
+function onMonthlySegmentClick(key: string) {
+  selectedFeedback.value = { scope: 'monthly', key }
+}
+
 function firstCountedKey(segs: FeedbackDonutSegment[]): string | null {
   return segs.find((s) => s.count > 0)?.key ?? null
 }
 
 watch(
-  [dailyDonutSegments, weeklyDonutSegments, dailyUseDonut, weeklyUseDonut, showWeeklyFeedbackChart],
+  [dailyDonutSegments, weeklyDonutSegments, monthlyDonutSegments, dailyUseDonut, weeklyUseDonut, monthlyUseDonut, showWeeklyFeedbackChart],
   () => {
     const dKey = firstCountedKey(dailyDonutSegments.value)
     const wKey = firstCountedKey(weeklyDonutSegments.value)
 
-    if (!dailyUseDonut.value && !weeklyUseDonut.value) {
+    if (!dailyUseDonut.value && !weeklyUseDonut.value && !monthlyUseDonut.value) {
       selectedFeedback.value = null
       return
     }
@@ -670,6 +803,41 @@ function onMonthlyTaskNavigate(task: Task) {
   height: 14px;
 }
 
+.task-planning__feedback-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.task-planning__calendar-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: $color-gray-700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+
+  &:hover {
+    background: $color-gray-50;
+  }
+
+  &--active {
+    border-color: $color-primary;
+    background: rgba($color-primary-light, 0.12);
+    color: $color-primary-dark;
+  }
+}
+
 // ── 슬라이드 래퍼 ──────────────────────────────
 .task-planning__panel-wrap {
   overflow: hidden;
@@ -759,25 +927,53 @@ function onMonthlyTaskNavigate(task: Task) {
   }
 }
 
+.task-planning__calendar-outer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 0;
+
+  &--open {
+    grid-template-rows: 1fr;
+    margin-bottom: $spacing-md;
+  }
+}
+
+.task-planning__calendar-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .task-planning__donuts {
   display: grid;
   grid-template-columns: 1fr;
   gap: $spacing-sm;
   margin-bottom: $spacing-md;
 
-  &--both {
+  &--three {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  &--two {
     grid-template-columns: 1fr 1fr;
   }
 
-  &--daily-only {
+  &--one {
     justify-items: center;
     max-width: 220px;
     margin-left: auto;
     margin-right: auto;
   }
 
+  @media (max-width: 560px) {
+    &--three {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
   @media (max-width: 360px) {
-    &--both {
+    &--three,
+    &--two {
       grid-template-columns: 1fr;
     }
   }
@@ -919,7 +1115,7 @@ function onMonthlyTaskNavigate(task: Task) {
 
 .task-planning__calendar {
   min-height: 0;
-  padding: $spacing-md;
+  padding: $spacing-sm;
   border-radius: $radius-lg;
   background: $color-white;
   box-shadow: $shadow-md;
@@ -929,7 +1125,7 @@ function onMonthlyTaskNavigate(task: Task) {
   width: 100%;
   max-height: min(70vh, 520px);
   overflow: auto;
-  padding: $spacing-md;
+  padding: $spacing-sm;
   background: $color-white;
   // border: 1px solid $color-gray-200;
   border-radius: $radius-lg;

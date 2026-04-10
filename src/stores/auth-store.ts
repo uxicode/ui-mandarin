@@ -28,7 +28,9 @@ export const useAuthStore = defineStore('auth', () => {
   /** 로그인 상태에 맞게 서버 tasks 또는 게스트 localStorage 로드 */
   async function refreshTasksAfterAuthChange() {
     const { useTaskStore } = await import('@/stores/task-store')
+    const { useMemoStore } = await import('@/stores/memo-store')
     await useTaskStore().fetchTasks().catch(() => {})
+    await useMemoStore().fetchMemos().catch(() => {})
   }
 
   async function initAuth() {

@@ -432,6 +432,93 @@ app.patch('/api/tasks/:id/toggle', requireTaskAuth, async (req, res) => {
   }
 })
 
+// 메모 목록 (GET /api/memos)
+app.get('/api/memos', requireTaskAuth, async (req, res) => {
+  try {
+    const { data, error } = await req.taskSupabase
+      .from('memos')
+      .select('*')
+      .order('updated_at', { ascending: false })
+
+    if (error) throw error
+
+    res.json({ success: true, data: data ?? [] })
+  } catch (error) {
+    console.error('메모 목록 오류:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// 메모 생성 (POST /api/memos)
+app.post('/api/memos', requireTaskAuth, async (req, res) => {
+  try {
+    const { title = '', body = '' } = req.body || {}
+
+    const { data, error } = await req.taskSupabase
+      .from('memos')
+      .insert([{ title: String(title), body: String(body) }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.status(201).json({ success: true, data })
+  } catch (error) {
+    console.error('메모 생성 오류:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// 메모 수정 (PUT /api/memos/:id)
+app.put('/api/memos/:id', requireTaskAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, body } = req.body || {}
+
+    const updateData = {}
+    if (title !== undefined) updateData.title = String(title)
+    if (body !== undefined) updateData.body = String(body)
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, error: '수정할 필드가 없습니다.' })
+    }
+
+    const { data, error } = await req.taskSupabase
+      .from('memos')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    if (!data) {
+      return res.status(404).json({ success: false, error: 'Memo not found.' })
+    }
+
+    res.json({ success: true, data })
+  } catch (error) {
+    console.error('메모 수정 오류:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Memo delete (DELETE /api/memos/:id)
+app.delete('/api/memos/:id', requireTaskAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const { error } = await req.taskSupabase.from('memos').delete().eq('id', id)
+
+    if (error) throw error
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Memo delete error:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // URL 제목 가져오기 (GET /api/fetch-url-title)
 app.get('/api/fetch-url-title', async (req, res) => {
   try {
