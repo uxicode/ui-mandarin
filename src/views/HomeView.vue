@@ -75,7 +75,7 @@ defineExpose({ selectedTaskId })
 .app__main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(300px, 1.2fr) minmax(0, 2.4fr);
+  grid-template-columns: minmax(200px, 1fr) minmax(300px, 1fr) minmax(0, 2fr);
   gap: $spacing-xl;
   padding: $spacing-xl;
   overflow: hidden;

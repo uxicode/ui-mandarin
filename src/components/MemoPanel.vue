@@ -1,6 +1,6 @@
 <template>
   <section class="memo-panel" aria-label="메모">
-    <h3 class="memo-panel__heading">메모</h3>
+    <h2 class="memo-panel__heading">메모</h2>
     <div class="memo-panel__layout">
       <aside class="memo-panel__sidebar">
         <button type="button" class="memo-panel__new-btn" @click="onNewMemo">
@@ -27,19 +27,21 @@
       <div class="memo-panel__editor-wrap">
         <template v-if="memoStore.selectedMemo">
           <div class="memo-panel__editor-toolbar">
+            <button
+              type="button"
+              class="memo-panel__icon-btn"
+              aria-label="메모 확대 보기"
+              title="메모 확대 보기"
+              @click="openExpanded"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memo-panel__icon-svg" aria-hidden="true">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7M3 9V3h6M21 15v6h-6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
             <button type="button" class="memo-panel__delete-btn" @click="onDeleteMemo">
               삭제
             </button>
           </div>
-          <input
-            v-model="draftTitle"
-            type="text"
-            class="memo-panel__title-input"
-            placeholder="제목"
-            autocomplete="off"
-            @input="scheduleSave"
-            @blur="flushSave"
-          />
           <textarea
             v-model="draftBody"
             class="memo-panel__body-input"
@@ -54,11 +56,80 @@
         </p>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showExpanded"
+        class="memo-expand-backdrop"
+      >
+        <div
+          ref="expandShellRef"
+          class="memo-expand-shell"
+          tabindex="-1"
+          :style="{ width: `${modalWidthPx}px`, height: `${modalHeightPx}px` }"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="memo-expand-title"
+        >
+          <div
+            class="memo-expand__grip memo-expand__grip--left"
+            title="너비 조절"
+            @mousedown.prevent="onGripStart('left', $event)"
+          />
+          <div class="memo-expand__inner">
+            <div class="memo-expand__header">
+              <h4 id="memo-expand-title" class="memo-expand__title">메모</h4>
+              <button type="button" class="memo-expand__close" aria-label="닫기" @click="closeExpanded">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memo-expand__close-svg">
+                  <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+                </svg>
+              </button>
+            </div>
+            <textarea
+              v-model="draftBody"
+              class="memo-expand__body-input"
+              placeholder="메모 내용"
+              @input="scheduleSave"
+              @blur="flushSave"
+            />
+          </div>
+          <div
+            class="memo-expand__grip memo-expand__grip--right"
+            title="너비 조절"
+            @mousedown.prevent="onGripStart('right', $event)"
+          />
+          <div
+            class="memo-expand__corner memo-expand__corner--nw"
+            title="크기 조절"
+            aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('nw', $event)"
+          />
+          <div
+            class="memo-expand__corner memo-expand__corner--ne"
+            title="크기 조절"
+            aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('ne', $event)"
+          />
+          <div
+            class="memo-expand__corner memo-expand__corner--sw"
+            title="크기 조절"
+            aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('sw', $event)"
+          />
+          <div
+            class="memo-expand__corner memo-expand__corner--se"
+            title="크기 조절"
+            aria-hidden="true"
+            @mousedown.prevent="onCornerGripStart('se', $event)"
+          />
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMemoStore } from '@/stores/memo-store'
 import type { Memo } from '@/types/memo'
@@ -66,26 +137,172 @@ import type { Memo } from '@/types/memo'
 const memoStore = useMemoStore()
 const { selectedMemo } = storeToRefs(memoStore)
 
-const draftTitle = ref('')
 const draftBody = ref('')
 
+/** 저장 시 title: 본문 앞부분 최대 20자(유니코드 스칼라 기준). */
+const MEMO_TITLE_FROM_BODY_MAX = 20
+
+function titleFromMemoBody(body: string): string {
+  const trimmedStart = body.replace(/^\s+/, '')
+  return Array.from(trimmedStart).slice(0, MEMO_TITLE_FROM_BODY_MAX).join('')
+}
+
+const showExpanded = ref(false)
+const modalWidthPx = ref(720)
+const modalHeightPx = ref(560)
+const expandShellRef = ref<HTMLElement | null>(null)
+
+const MODAL_WIDTH_MIN = 400
+const MODAL_HEIGHT_MIN = 280
+
+function modalWidthMax(): number {
+  if (typeof window === 'undefined') return 1200
+  return Math.min(1200, window.innerWidth - 32)
+}
+
+function modalHeightMax(): number {
+  if (typeof window === 'undefined') return 900
+  return Math.min(900, window.innerHeight - 32)
+}
+
+function clampModalWidth(w: number): number {
+  return Math.max(MODAL_WIDTH_MIN, Math.min(modalWidthMax(), w))
+}
+
+function clampModalHeight(h: number): number {
+  return Math.max(MODAL_HEIGHT_MIN, Math.min(modalHeightMax(), h))
+}
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let gripUp: (() => void) | null = null
+
+function onExpandedEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeExpanded()
+}
+
+async function openExpanded() {
+  flushSave()
+  if (!memoStore.selectedMemoId) return
+  modalWidthPx.value = clampModalWidth(modalWidthPx.value)
+  modalHeightPx.value = clampModalHeight(modalHeightPx.value)
+  showExpanded.value = true
+  await nextTick()
+  expandShellRef.value?.focus()
+}
+
+function closeExpanded() {
+  flushSave()
+  showExpanded.value = false
+}
+
+function onGripStart(edge: 'left' | 'right', e: MouseEvent) {
+  if (gripUp) gripUp()
+  const startX = e.clientX
+  const startW = modalWidthPx.value
+
+  function onMove(ev: MouseEvent) {
+    const dx = ev.clientX - startX
+    modalWidthPx.value = clampModalWidth(edge === 'right' ? startW + dx : startW - dx)
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    gripUp = null
+  }
+
+  document.body.style.cursor = 'ew-resize'
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  gripUp = onUp
+}
+
+type CornerGrip = 'nw' | 'ne' | 'sw' | 'se'
+
+const CORNER_CURSOR: Record<CornerGrip, string> = {
+  nw: 'nwse-resize',
+  se: 'nwse-resize',
+  ne: 'nesw-resize',
+  sw: 'nesw-resize',
+}
+
+function onCornerGripStart(corner: CornerGrip, e: MouseEvent) {
+  if (gripUp) gripUp()
+  const startX = e.clientX
+  const startY = e.clientY
+  const startW = modalWidthPx.value
+  const startH = modalHeightPx.value
+
+  function onMove(ev: MouseEvent) {
+    const dx = ev.clientX - startX
+    const dy = ev.clientY - startY
+    let w = startW
+    let h = startH
+    if (corner === 'se') {
+      w = startW + dx
+      h = startH + dy
+    } else if (corner === 'sw') {
+      w = startW - dx
+      h = startH + dy
+    } else if (corner === 'ne') {
+      w = startW + dx
+      h = startH - dy
+    } else {
+      w = startW - dx
+      h = startH - dy
+    }
+    modalWidthPx.value = clampModalWidth(w)
+    modalHeightPx.value = clampModalHeight(h)
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    gripUp = null
+  }
+
+  document.body.style.cursor = CORNER_CURSOR[corner]
+  document.body.style.userSelect = 'none'
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  gripUp = onUp
+}
+
+function onWindowResize() {
+  modalWidthPx.value = clampModalWidth(modalWidthPx.value)
+  modalHeightPx.value = clampModalHeight(modalHeightPx.value)
+}
+
+watch(showExpanded, (open) => {
+  if (typeof document === 'undefined') return
+  document.body.style.overflow = open ? 'hidden' : ''
+  if (open) document.addEventListener('keydown', onExpandedEscape)
+  else document.removeEventListener('keydown', onExpandedEscape)
+})
 
 watch(
   selectedMemo,
   (m) => {
-    draftTitle.value = m?.title ?? ''
     draftBody.value = m?.body ?? ''
   },
   { immediate: true }
 )
 
 function listTitle(m: Memo): string {
-  const t = m.title?.trim()
-  if (t) return t
-  const first = m.body?.trim().split(/\r?\n/).find((line) => line.length > 0)
-  if (first) return first.length > 48 ? `${first.slice(0, 48)}…` : first
-  return '제목 없음'
+  const s = (m.body ?? '').replace(/^\s+/, '')
+  if (!s) {
+    const t = (m.title ?? '').trim()
+    return t || '제목 없음'
+  }
+  const chars = Array.from(s)
+  const max = 48
+  const preview = chars.slice(0, max).join('')
+  return chars.length > max ? `${preview}…` : preview
 }
 
 function formatShortDate(iso: string): string {
@@ -97,9 +314,16 @@ function formatShortDate(iso: string): string {
   }
 }
 
+function isDraftUnchanged(): boolean {
+  const m = selectedMemo.value
+  if (!m) return true
+  return draftBody.value === m.body
+}
+
 function selectMemoRow(id: string) {
   flushSave()
   memoStore.selectMemo(id)
+  memoStore.pinMemoToTop(id)
 }
 
 function scheduleSave() {
@@ -108,7 +332,11 @@ function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
     saveTimer = null
-    void memoStore.saveMemo(id, { title: draftTitle.value, body: draftBody.value })
+    if (isDraftUnchanged()) return
+    void memoStore.saveMemo(id, {
+      title: titleFromMemoBody(draftBody.value),
+      body: draftBody.value,
+    })
   }, 450)
 }
 
@@ -119,7 +347,11 @@ function flushSave() {
     clearTimeout(saveTimer)
     saveTimer = null
   }
-  void memoStore.saveMemo(id, { title: draftTitle.value, body: draftBody.value })
+  if (isDraftUnchanged()) return
+  void memoStore.saveMemo(id, {
+    title: titleFromMemoBody(draftBody.value),
+    body: draftBody.value,
+  })
 }
 
 async function onNewMemo() {
@@ -136,6 +368,14 @@ async function onDeleteMemo() {
 
 onMounted(() => {
   void memoStore.fetchMemos()
+  window.addEventListener('resize', onWindowResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize)
+  document.removeEventListener('keydown', onExpandedEscape)
+  document.body.style.overflow = ''
+  if (gripUp) gripUp()
 })
 </script>
 
@@ -154,7 +394,7 @@ onMounted(() => {
 
 .memo-panel__heading {
   margin: 0;
-  font-size: 0.8125rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: $color-gray-800;
 }
@@ -266,6 +506,32 @@ onMounted(() => {
 .memo-panel__editor-toolbar {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.memo-panel__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xs;
+  border: 1px solid $color-gray-300;
+  border-radius: $radius-md;
+  background: $color-white;
+  color: $color-gray-700;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+
+  &:hover {
+    border-color: $color-primary;
+    color: $color-primary;
+    background: rgba($color-primary-light, 0.1);
+  }
+}
+
+.memo-panel__icon-svg {
+  width: 16px;
+  height: 16px;
 }
 
 .memo-panel__delete-btn {
@@ -283,22 +549,6 @@ onMounted(() => {
     border-color: #ef4444;
     color: #ef4444;
     background: rgba(239, 68, 68, 0.06);
-  }
-}
-
-.memo-panel__title-input {
-  width: 100%;
-  padding: $spacing-xs $spacing-sm;
-  border: 1px solid $color-gray-200;
-  border-radius: $radius-md;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: $color-gray-900;
-
-  &:focus {
-    outline: none;
-    border-color: $color-primary;
   }
 }
 
@@ -339,6 +589,155 @@ onMounted(() => {
     border-right: none;
     border-bottom: 1px solid $color-gray-200;
     max-height: 160px;
+  }
+}
+
+/* 확대 레이어 (Teleport → body, 스코프 방지용 :deep 미사용 — 클래스 prefix만 최소화) */
+.memo-expand-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-md;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.memo-expand-shell {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  box-sizing: border-box;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md, 0 25px 50px rgba(0, 0, 0, 0.18);
+  background: $color-white;
+  outline: none;
+}
+
+.memo-expand__corner {
+  position: absolute;
+  z-index: 3;
+  width: 14px;
+  height: 14px;
+  touch-action: none;
+
+  &:hover {
+    background: rgba($color-primary, 0.18);
+  }
+
+  &--nw {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+    border-radius: $radius-lg 0 0 0;
+  }
+
+  &--ne {
+    top: 0;
+    right: 0;
+    cursor: nesw-resize;
+    border-radius: 0 $radius-lg 0 0;
+  }
+
+  &--sw {
+    bottom: 0;
+    left: 0;
+    cursor: nesw-resize;
+    border-radius: 0 0 0 $radius-lg;
+  }
+
+  &--se {
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+    border-radius: 0 0 $radius-lg 0;
+  }
+}
+
+.memo-expand__grip {
+  flex-shrink: 0;
+  width: 10px;
+  cursor: ew-resize;
+  background: transparent;
+  align-self: stretch;
+  touch-action: none;
+
+  &:hover {
+    background: rgba($color-primary, 0.12);
+  }
+
+  &--left {
+    border-radius: $radius-lg 0 0 $radius-lg;
+  }
+
+  &--right {
+    border-radius: 0 $radius-lg $radius-lg 0;
+  }
+}
+
+.memo-expand__inner {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  overflow: hidden;
+}
+
+.memo-expand__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.memo-expand__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $color-gray-900;
+}
+
+.memo-expand__close {
+  display: inline-flex;
+  padding: $spacing-xs;
+  border: none;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-gray-600;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-gray-100;
+    color: $color-gray-900;
+  }
+}
+
+.memo-expand__close-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.memo-expand__body-input {
+  flex: 1;
+  min-height: 120px;
+  width: 100%;
+  padding: $spacing-md;
+  border: 1px solid $color-gray-200;
+  border-radius: $radius-md;
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: $color-gray-800;
+  resize: none;
+
+  &:focus {
+    outline: none;
+    border-color: $color-primary;
   }
 }
 </style>

@@ -143,6 +143,16 @@ export const useMemoStore = defineStore('memo', () => {
     selectedMemoId.value = id
   }
 
+  /** 선택한 메모를 목록 상단으로 (나머지는 상대 순서 유지). 게스트는 로컬 저장순서 동기화. */
+  function pinMemoToTop(id: string) {
+    const idx = memos.value.findIndex((m) => m.id === id)
+    if (idx === -1 || idx === 0) return
+    const next = [...memos.value]
+    const [row] = next.splice(idx, 1)
+    memos.value = [row, ...next]
+    if (isGuest()) localMemoStorage.save(memos.value)
+  }
+
   return {
     memos,
     selectedMemoId,
@@ -154,5 +164,6 @@ export const useMemoStore = defineStore('memo', () => {
     saveMemo,
     removeMemo,
     selectMemo,
+    pinMemoToTop,
   }
 })
