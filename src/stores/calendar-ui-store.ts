@@ -52,6 +52,12 @@ export const useCalendarUiStore = defineStore('calendarUi', () => {
     calendarView.value = { year: now.getFullYear(), month: now.getMonth() }
   }
 
+  function setSelectedDayKey(dateKey: string) {
+    selectedCalendarDay.value = dateKey
+    const d = parseLocalDateKey(dateKey)
+    calendarView.value = { year: d.getFullYear(), month: d.getMonth() }
+  }
+
   function applyForTask(task: Task) {
     const key = resolveTaskCalendarDateKey(task)
     selectedCalendarDay.value = key
@@ -68,6 +74,7 @@ export const useCalendarUiStore = defineStore('calendarUi', () => {
     setSelectedDayFromMonth,
     shiftCalendarMonth,
     goToToday,
+    setSelectedDayKey,
     applyForTask,
   }
 })

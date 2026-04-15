@@ -25,7 +25,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -35,19 +36,30 @@ describe('TaskList', () => {
     expect(wrapper.find('.task-list__add-button').exists()).toBe(true)
   })
 
-  it('should show empty message when no tasks', () => {
+  it('should show empty message when all tasks are completed', async () => {
+    const store = useTaskStore()
+    await store.addTask({
+      title: 'Done only',
+      scores: { importance: 3, urgency: 3 },
+      completed: false,
+    })
+    await store.updateTask(store.tasks[0].id, { completed: true })
+
     const wrapper = mount(TaskList, {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
     })
 
+    await flushPromises()
+
     expect(wrapper.find('.task-list__empty').exists()).toBe(true)
-    expect(wrapper.find('.task-list__empty').text()).toContain('업무가 없습니다')
+    expect(wrapper.find('.task-list__empty').text()).toContain('할당된 업무 목록이 없습니다')
   })
 
   it('should display incomplete tasks', async () => {
@@ -62,7 +74,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -97,7 +110,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -123,7 +137,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -149,7 +164,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -177,7 +193,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -193,12 +210,13 @@ describe('TaskList', () => {
     expect(wrapper.find('.task-item__edit').exists()).toBe(true)
   })
 
-  it('should show add form when add button is clicked', async () => {
+  it('should emit toggle-timeline when add button is clicked', async () => {
     const wrapper = mount(TaskList, {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -209,9 +227,7 @@ describe('TaskList', () => {
 
     await flushPromises()
 
-    // TaskForm should be visible after clicking add button
-    const taskForm = wrapper.findComponent({ name: 'TaskForm' })
-    expect(taskForm.exists()).toBe(true)
+    expect(wrapper.emitted('toggle-timeline')).toBeTruthy()
   })
 
   it('should display task with dates', async () => {
@@ -230,7 +246,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },
@@ -256,7 +273,8 @@ describe('TaskList', () => {
       global: {
         stubs: {
           StarRating: true,
-          TaskForm: true,
+          TaskDayCalendar: true,
+          TaskTimeline: true,
           VueDatePicker: true,
         },
       },

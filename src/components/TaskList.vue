@@ -44,24 +44,43 @@
       </div>
     </div>
 
-    <!-- 새 업무 추가 폼 -->
-    <!-- 타임라인 뷰 -->
-    <TaskTimeline
-      v-if="props.showTimeline"
-      :selected-task-id="props.selectedTaskId"
-      @select="emit('select', $event)"
-    />
+    <div v-if="props.showTimeline" class="task-list__timeline-wrap">
+      <div class="task-list__timeline-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="task-list__timeline-tab"
+          :class="{ 'task-list__timeline-tab--active': timelineSubView === 'day' }"
+          :aria-selected="timelineSubView === 'day'"
+          @click="timelineSubView = 'day'"
+        >
+          일간
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="task-list__timeline-tab"
+          :class="{ 'task-list__timeline-tab--active': timelineSubView === 'quarter' }"
+          :aria-selected="timelineSubView === 'quarter'"
+          @click="timelineSubView = 'quarter'"
+        >
+          분기
+        </button>
+      </div>
+      <TaskDayCalendar
+        v-show="timelineSubView === 'day'"
+        :selected-task-id="props.selectedTaskId"
+        @select="emit('select', $event)"
+        @exit-timeline="emit('exit-timeline')"
+      />
+      <TaskTimeline
+        v-show="timelineSubView === 'quarter'"
+        :selected-task-id="props.selectedTaskId"
+        @select="emit('select', $event)"
+      />
+    </div>
 
     <template v-if="!props.showTimeline">
-
-    <Transition name="task-form-slide">
-      <TaskForm
-        v-if="showAddForm"
-        :is-submitting="isAddingTask"
-        @submit="handleAddSubmit"
-        @cancel="handleAddCancel"
-      />
-    </Transition>
 
     <!-- 슬라이드 래퍼: 기존 목록 (grid-template-rows 트릭으로 높이 부드럽게) -->
     <div class="task-list__main-outer" :class="{ 'task-list__main-outer--collapsed': showExport }">
@@ -76,7 +95,7 @@
     </div>
 
     <div
-      v-if="!taskStore.isLoading && taskStore.tasks.length > 0 && displayIncompleteTasks.length === 0 && !showAddForm"
+      v-if="!taskStore.isLoading && taskStore.tasks.length > 0 && displayIncompleteTasks.length === 0"
       class="task-list__empty"
     >
       <p>할당된 업무 목록이 없습니다.</p>
@@ -480,7 +499,7 @@ import {
 import { VueDatePicker } from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import StarRating from './StarRating.vue'
-import TaskForm from './TaskForm.vue'
+import TaskDayCalendar from './TaskDayCalendar.vue'
 import TaskTimeline from './TaskTimeline.vue'
 import type { Task, TaskScores } from '@/types/task'
 
@@ -493,6 +512,7 @@ interface Emits {
   (e: 'select', taskId: string): void
   (e: 'delete', taskId: string): void
   (e: 'toggle-timeline'): void
+  (e: 'exit-timeline'): void
 }
 
 const props = defineProps<Props>()
@@ -553,9 +573,7 @@ async function copyExportText() {
   setTimeout(() => (copyDone.value = false), 1800)
 }
 
-// 새 업무 추가 폼 표시 여부
-const showAddForm = ref(false)
-const isAddingTask = ref(false)
+const timelineSubView = ref<'day' | 'quarter'>('day')
 
 // 편집 중인 업무 ID
 const editingTaskId = ref<string | undefined>()
@@ -658,33 +676,13 @@ function getQuadrant(task: Task) {
   return getQuadrantFromScores(scores)
 }
 
-// 새 업무 추가 버튼 클릭
-function handleAddClick() {
-  showAddForm.value = true
-}
-
-// 새 업무 추가 제출
-async function handleAddSubmit(task: Omit<Task, 'id'>) {
-  isAddingTask.value = true
-  try {
-    await taskStore.addTask({
-      title: task.title,
-      description: task.description,
-      scores: task.scores,
-      startDate: task.startDate,
-      deadline: task.deadline,
-    })
-    showAddForm.value = false
-  } catch (error) {
-    console.error('업무 추가 실패:', error)
-  } finally {
-    isAddingTask.value = false
+async function handleAddClick() {
+  if (!props.showTimeline) {
+    emit('toggle-timeline')
+    await nextTick()
   }
-}
-
-// 새 업무 추가 취소
-function handleAddCancel() {
-  showAddForm.value = false
+  timelineSubView.value = 'day'
+  calendarStore.goToToday()
 }
 
 // 업무 선택
@@ -859,37 +857,40 @@ function handleDeleteClick(taskId: string) {
   }
 }
 
-// TaskForm 슬라이드 인/아웃 트랜지션
-.task-form-slide-enter-active,
-.task-form-slide-leave-active {
-  overflow: hidden;
-  transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.25s ease,
-              transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+.task-list__timeline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  min-height: 0;
+  flex: 1;
 }
 
-.task-form-slide-enter-from {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-10px);
+.task-list__timeline-tabs {
+  display: flex;
+  gap: $spacing-xs;
+  flex-shrink: 0;
 }
 
-.task-form-slide-enter-to {
-  max-height: 600px;
-  opacity: 1;
-  transform: translateY(0);
-}
+.task-list__timeline-tab {
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-md;
+  border: 1px solid $color-gray-300;
+  background: $color-white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: $color-gray-600;
+  cursor: pointer;
 
-.task-form-slide-leave-from {
-  max-height: 600px;
-  opacity: 1;
-  transform: translateY(0);
-}
+  &:hover {
+    border-color: $color-gray-400;
+    color: $color-gray-800;
+  }
 
-.task-form-slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-10px);
+  &--active {
+    border-color: $color-primary;
+    background: rgba($color-primary, 0.1);
+    color: $color-primary-dark;
+  }
 }
 
 // grid-template-rows 트릭: 높이를 0fr ↔ 1fr 로 자연스럽게 애니메이션

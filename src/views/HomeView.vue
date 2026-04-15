@@ -12,6 +12,7 @@
           @select="handleSelect"
           @delete="handleDelete"
           @toggle-timeline="handleToggleTimeline"
+          @exit-timeline="showTimeline = false"
         />
       </section>
 
