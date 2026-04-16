@@ -17,7 +17,7 @@
       <button type="button" class="task-day-cal__today" @click="goToday">오늘</button>
     </div>
 
-    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다.</p>
+    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다. 새 업무 바가 있을 때는 같은 날에만 걸친 기존 업무 바를 드래그해 시간을 옮길 수 있습니다.</p>
 
     <div v-if="anchorTasks.length > 0" class="task-day-cal__anchors">
       <span class="task-day-cal__anchors-label">시간 없음</span>
@@ -66,6 +66,7 @@
             v-show="hasDraft"
             ref="draftBarRef"
             class="task-day-cal__draft"
+            :class="{ 'task-day-cal__draft--compact': isDraftCompactRow }"
             :style="draftBarStyle"
             @pointermove="onDraftPointerMove"
             @pointerup="onDraftPointerUp"
@@ -90,9 +91,16 @@
             :key="task.id"
             type="button"
             class="task-day-cal__block"
-            :class="{ 'task-day-cal__block--selected': props.selectedTaskId === task.id }"
+            :class="{
+              'task-day-cal__block--selected': props.selectedTaskId === task.id,
+              'task-day-cal__block--draggable': blockCanTimeDrag(task),
+              'task-day-cal__block--dragging': blockDragPreview?.taskId === task.id,
+            }"
             :style="blockStyle(task)"
-            @click.stop="openEditModal(task)"
+            @pointerdown.stop="onBlockPointerDown(task, $event)"
+            @pointermove="onBlockPointerMove"
+            @pointerup="onBlockPointerUp"
+            @pointercancel="onBlockPointerCancel"
           >
             <span class="task-day-cal__block-title">{{ task.title }}</span>
             <span class="task-day-cal__block-meta">중{{ task.scores.importance }} · 시{{ task.scores.urgency }}</span>
@@ -128,6 +136,7 @@ import {
   layoutTaskBlockForDay,
   layoutFromMinuteRange,
   localDayMinutesToIso,
+  getTaskMinutesIfFullyOnLocalDay,
   snapMinutesToSlot,
   taskShowsOnDayGrid,
   formatTimeLabel,
@@ -234,9 +243,27 @@ const quickModalContentVisible = computed(
       modalOpen.value &&
       modalMode.value === 'create' &&
       hasDraft.value &&
-      draftInteraction.value !== null
+      (draftInteraction.value !== null || blockDragState.value !== null)
     )
 )
+
+interface BlockDragState {
+  taskId: string
+  pointerId: number
+  startClientY: number
+  origStartMin: number
+  origEndMin: number
+  moved: boolean
+  canDrag: boolean
+}
+
+const blockDragState = ref<BlockDragState | null>(null)
+const blockDragPreview = ref<{ taskId: string; startMin: number; endMin: number } | null>(null)
+
+function blockCanTimeDrag(task: Task): boolean {
+  if (!hasDraft.value) return false
+  return getTaskMinutesIfFullyOnLocalDay(task, dayKey.value) !== null
+}
 
 const draftBarStyle = computed(() => {
   const layout = layoutFromMinuteRange(
@@ -251,6 +278,11 @@ const draftBarStyle = computed(() => {
     height: `${layout.heightPx}px`,
   }
 })
+
+/** 기본 1h 블록 높이의 절반(30분 이하)일 때 제목·시간 가로 배치 */
+const isDraftCompactRow = computed(
+  () => draftEndMin.value - draftStartMin.value <= DEFAULT_DRAFT_DURATION_MIN / 2
+)
 
 const draftTimeRangeLabel = computed(() => {
   const a = localDayMinutesToIso(dayKey.value, draftStartMin.value)
@@ -274,12 +306,94 @@ function yToDraftSnappedMinute(clientY: number): number {
 }
 
 function blockStyle(task: Task) {
+  const p = blockDragPreview.value
+  if (p?.taskId === task.id) {
+    const layout = layoutFromMinuteRange(p.startMin, p.endMin, gridContentHeight, totalMinutes, 4)
+    return {
+      top: `${layout.topPx}px`,
+      height: `${layout.heightPx}px`,
+    }
+  }
   const layout = layoutTaskBlockForDay(task, dayKey.value, gridContentHeight, totalMinutes)
   if (!layout) return { display: 'none' }
   return {
     top: `${layout.topPx}px`,
     height: `${layout.heightPx}px`,
   }
+}
+
+function onBlockPointerDown(task: Task, e: PointerEvent) {
+  if (e.button !== 0) return
+  const range = getTaskMinutesIfFullyOnLocalDay(task, dayKey.value)
+  const canDrag = hasDraft.value && range !== null
+  blockDragState.value = {
+    taskId: task.id,
+    pointerId: e.pointerId,
+    startClientY: e.clientY,
+    origStartMin: range?.startMin ?? 0,
+    origEndMin: range?.endMin ?? 0,
+    moved: false,
+    canDrag,
+  }
+  if (canDrag && range)
+    blockDragPreview.value = { taskId: task.id, startMin: range.startMin, endMin: range.endMin }
+  else blockDragPreview.value = null
+  ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+}
+
+function onBlockPointerMove(e: PointerEvent) {
+  const st = blockDragState.value
+  if (!st || st.pointerId !== e.pointerId) return
+  if (Math.abs(e.clientY - st.startClientY) > 4) st.moved = true
+  if (!st.canDrag) return
+  const dur = st.origEndMin - st.origStartMin
+  const deltaMin = ((e.clientY - st.startClientY) / gridContentHeight) * totalMinutes
+  let rawS = st.origStartMin + deltaMin
+  rawS = Math.min(Math.max(rawS, 0), totalMinutes - dur)
+  const s = snapMinutesToSlot(rawS, DRAFT_SNAP_MINUTES)
+  let en = s + dur
+  if (en > totalMinutes) {
+    en = totalMinutes
+    const adjS = Math.max(0, snapMinutesToSlot(en - dur, DRAFT_SNAP_MINUTES))
+    blockDragPreview.value = { taskId: st.taskId, startMin: adjS, endMin: Math.min(totalMinutes, adjS + dur) }
+  } else {
+    blockDragPreview.value = { taskId: st.taskId, startMin: s, endMin: en }
+  }
+}
+
+function onBlockPointerUp(e: PointerEvent) {
+  const st = blockDragState.value
+  if (!st || st.pointerId !== e.pointerId) return
+  const el = e.currentTarget as HTMLElement
+  if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+
+  const savedPreview = st.canDrag ? blockDragPreview.value : null
+  const { taskId, origStartMin, origEndMin, canDrag, moved } = st
+  blockDragState.value = null
+  blockDragPreview.value = null
+
+  const task = taskStore.getTaskById(taskId)
+  if (!task) return
+
+  if (canDrag && moved && savedPreview) {
+    if (savedPreview.startMin !== origStartMin || savedPreview.endMin !== origEndMin) {
+      void taskStore.updateTask(taskId, {
+        startDate: localDayMinutesToIso(dayKey.value, savedPreview.startMin),
+        deadline: localDayMinutesToIso(dayKey.value, savedPreview.endMin),
+      })
+    }
+  } else if (!moved) {
+    openEditModal(task)
+  }
+}
+
+function onBlockPointerCancel(e: PointerEvent) {
+  const st = blockDragState.value
+  if (!st || st.pointerId !== e.pointerId) return
+  const el = e.currentTarget as HTMLElement
+  if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+  blockDragState.value = null
+  blockDragPreview.value = null
 }
 
 function goPrevDay() {
@@ -696,6 +810,27 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
   }
 }
 
+.task-day-cal__draft--compact .task-day-cal__draft-main {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.task-day-cal__draft--compact .task-day-cal__draft-title {
+  // flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-day-cal__draft--compact .task-day-cal__draft-time {
+  // flex: 0 0 auto;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
 .task-day-cal__draft-resize {
   flex-shrink: 0;
   height: 8px;
@@ -751,6 +886,20 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
 
   &--selected {
     box-shadow: 0 0 0 2px rgba($color-primary, 0.35);
+  }
+
+  &--draggable {
+    cursor: grab;
+    touch-action: none;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  &--dragging {
+    z-index: 4;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
   }
 }
 

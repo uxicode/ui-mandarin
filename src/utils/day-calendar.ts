@@ -93,6 +93,43 @@ export function layoutTaskBlockForDay(
   return { topPx, heightPx }
 }
 
+/**
+ * 시작·종료가 dateKey 로컬일 [00:00, 다음날 00:00] 구간에 모두 있을 때만
+ * 자정 기준 분(startMin, endMin)으로 일간 그리드에서 수직 이동·저장할 수 있다.
+ */
+export function getTaskMinutesIfFullyOnLocalDay(
+  task: Task,
+  dateKey: string
+): { startMin: number; endMin: number } | null {
+  if (!taskHasDateOnCalendar(task, dateKey)) return null
+
+  const day0 = startOfLocalDay(dateKey).getTime()
+  const day1 = endOfLocalDay(dateKey).getTime()
+
+  let startMs: number | null = task.startDate ? new Date(task.startDate).getTime() : null
+  let endMs: number | null = task.deadline ? new Date(task.deadline).getTime() : null
+
+  if (startMs !== null && Number.isNaN(startMs)) startMs = null
+  if (endMs !== null && Number.isNaN(endMs)) endMs = null
+
+  if (startMs === null && endMs === null) return null
+
+  if (startMs === null && endMs !== null) {
+    startMs = endMs - DEFAULT_NEW_TASK_DURATION_MS
+  }
+
+  if (endMs === null && startMs !== null) {
+    endMs = startMs + DEFAULT_NEW_TASK_DURATION_MS
+  }
+
+  if (!(startMs! >= day0 && endMs! <= day1)) return null
+
+  return {
+    startMin: (startMs! - day0) / 60000,
+    endMin: (endMs! - day0) / 60000,
+  }
+}
+
 export function taskShowsOnDayGrid(task: Task, dateKey: string): boolean {
   if (taskHasDateOnCalendar(task, dateKey)) {
     return !!(task.startDate || task.deadline)

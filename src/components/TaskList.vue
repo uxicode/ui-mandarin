@@ -45,38 +45,10 @@
     </div>
 
     <div v-if="props.showTimeline" class="task-list__timeline-wrap">
-      <div class="task-list__timeline-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          class="task-list__timeline-tab"
-          :class="{ 'task-list__timeline-tab--active': timelineSubView === 'day' }"
-          :aria-selected="timelineSubView === 'day'"
-          @click="timelineSubView = 'day'"
-        >
-          일간
-        </button>
-        <button
-          type="button"
-          role="tab"
-          class="task-list__timeline-tab"
-          :class="{ 'task-list__timeline-tab--active': timelineSubView === 'quarter' }"
-          :aria-selected="timelineSubView === 'quarter'"
-          @click="timelineSubView = 'quarter'"
-        >
-          분기
-        </button>
-      </div>
       <TaskDayCalendar
-        v-show="timelineSubView === 'day'"
         :selected-task-id="props.selectedTaskId"
         @select="emit('select', $event)"
         @exit-timeline="emit('exit-timeline')"
-      />
-      <TaskTimeline
-        v-show="timelineSubView === 'quarter'"
-        :selected-task-id="props.selectedTaskId"
-        @select="emit('select', $event)"
       />
     </div>
 
@@ -500,7 +472,6 @@ import { VueDatePicker } from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import StarRating from './StarRating.vue'
 import TaskDayCalendar from './TaskDayCalendar.vue'
-import TaskTimeline from './TaskTimeline.vue'
 import type { Task, TaskScores } from '@/types/task'
 
 interface Props {
@@ -572,8 +543,6 @@ async function copyExportText() {
   copyDone.value = true
   setTimeout(() => (copyDone.value = false), 1800)
 }
-
-const timelineSubView = ref<'day' | 'quarter'>('day')
 
 // 편집 중인 업무 ID
 const editingTaskId = ref<string | undefined>()
@@ -681,7 +650,6 @@ async function handleAddClick() {
     emit('toggle-timeline')
     await nextTick()
   }
-  timelineSubView.value = 'day'
   calendarStore.goToToday()
 }
 
@@ -863,34 +831,6 @@ function handleDeleteClick(taskId: string) {
   gap: $spacing-sm;
   min-height: 0;
   flex: 1;
-}
-
-.task-list__timeline-tabs {
-  display: flex;
-  gap: $spacing-xs;
-  flex-shrink: 0;
-}
-
-.task-list__timeline-tab {
-  padding: $spacing-xs $spacing-md;
-  border-radius: $radius-md;
-  border: 1px solid $color-gray-300;
-  background: $color-white;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: $color-gray-600;
-  cursor: pointer;
-
-  &:hover {
-    border-color: $color-gray-400;
-    color: $color-gray-800;
-  }
-
-  &--active {
-    border-color: $color-primary;
-    background: rgba($color-primary, 0.1);
-    color: $color-primary-dark;
-  }
 }
 
 // grid-template-rows 트릭: 높이를 0fr ↔ 1fr 로 자연스럽게 애니메이션
