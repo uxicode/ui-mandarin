@@ -17,7 +17,7 @@
       <button type="button" class="task-day-cal__today" @click="goToday">오늘</button>
     </div>
 
-    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다. 새 업무 바가 있을 때는 같은 날에만 걸친 기존 업무 바를 드래그해 시간을 옮길 수 있습니다.</p>
+    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다. 같은 로컬일 안에 완전히 들어오는 기존 일정 블록은 언제든지 드래그해 시간대를 옮길 수 있습니다.</p>
 
     <div v-if="anchorTasks.length > 0" class="task-day-cal__anchors">
       <span class="task-day-cal__anchors-label">시간 없음</span>
@@ -94,13 +94,14 @@
             :class="{
               'task-day-cal__block--selected': props.selectedTaskId === task.id,
               'task-day-cal__block--draggable': blockCanTimeDrag(task),
-              'task-day-cal__block--dragging': blockDragPreview?.taskId === task.id,
+              'task-day-cal__block--dragging': blockDragState?.taskId === task.id,
             }"
             :style="blockStyle(task)"
             @pointerdown.stop="onBlockPointerDown(task, $event)"
             @pointermove="onBlockPointerMove"
             @pointerup="onBlockPointerUp"
             @pointercancel="onBlockPointerCancel"
+            @transitionend="onBlockTransitionEnd(task, $event)"
           >
             <span class="task-day-cal__block-title">{{ task.title }}</span>
             <span class="task-day-cal__block-meta">중{{ task.scores.importance }} · 시{{ task.scores.urgency }}</span>
@@ -125,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useTaskStore } from '@/stores/task-store'
 import { useCalendarUiStore } from '@/stores/calendar-ui-store'
@@ -173,6 +174,8 @@ const totalMinutes = 24 * 60
 const gridContentHeight = slotCount * rowHeight
 
 const DRAFT_SNAP_MINUTES = 10
+/** 블록 top/height 전환과 맞춤 (SCSS `.task-day-cal__block` transition) */
+const BLOCK_LAYOUT_TRANSITION_MS = 200
 const DEFAULT_DRAFT_DURATION_MIN = 60
 /** Resize: min duration = half of default 1h block (30m). */
 const MIN_DRAFT_RESIZE_DURATION_MIN = DEFAULT_DRAFT_DURATION_MIN / 2
@@ -260,8 +263,55 @@ interface BlockDragState {
 const blockDragState = ref<BlockDragState | null>(null)
 const blockDragPreview = ref<{ taskId: string; startMin: number; endMin: number } | null>(null)
 
+interface BlockCommitPending {
+  taskId: string
+  startMin: number
+  endMin: number
+}
+
+/** 드롭 후 전환 애니메이션 끝나면 스토어에 반영 */
+const blockCommitPending = ref<BlockCommitPending | null>(null)
+let blockSettleFallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearBlockSettleFallbackTimer() {
+  if (blockSettleFallbackTimer !== null) {
+    clearTimeout(blockSettleFallbackTimer)
+    blockSettleFallbackTimer = null
+  }
+}
+
+function flushPendingBlockCommitIfAny() {
+  const p = blockCommitPending.value
+  if (!p) return
+  clearBlockSettleFallbackTimer()
+  blockCommitPending.value = null
+  blockDragPreview.value = null
+  void taskStore.updateTask(p.taskId, {
+    startDate: localDayMinutesToIso(dayKey.value, p.startMin),
+    deadline: localDayMinutesToIso(dayKey.value, p.endMin),
+  })
+}
+
+async function finalizeBlockCommitAfterSettle() {
+  clearBlockSettleFallbackTimer()
+  const p = blockCommitPending.value
+  if (!p) return
+  blockCommitPending.value = null
+  try {
+    await taskStore.updateTask(p.taskId, {
+      startDate: localDayMinutesToIso(dayKey.value, p.startMin),
+      deadline: localDayMinutesToIso(dayKey.value, p.endMin),
+    })
+  } finally {
+    blockDragPreview.value = null
+  }
+}
+
+onUnmounted(() => {
+  flushPendingBlockCommitIfAny()
+})
+
 function blockCanTimeDrag(task: Task): boolean {
-  if (!hasDraft.value) return false
   return getTaskMinutesIfFullyOnLocalDay(task, dayKey.value) !== null
 }
 
@@ -324,8 +374,9 @@ function blockStyle(task: Task) {
 
 function onBlockPointerDown(task: Task, e: PointerEvent) {
   if (e.button !== 0) return
+  flushPendingBlockCommitIfAny()
   const range = getTaskMinutesIfFullyOnLocalDay(task, dayKey.value)
-  const canDrag = hasDraft.value && range !== null
+  const canDrag = range !== null
   blockDragState.value = {
     taskId: task.id,
     pointerId: e.pointerId,
@@ -370,21 +421,52 @@ function onBlockPointerUp(e: PointerEvent) {
   const savedPreview = st.canDrag ? blockDragPreview.value : null
   const { taskId, origStartMin, origEndMin, canDrag, moved } = st
   blockDragState.value = null
-  blockDragPreview.value = null
 
   const task = taskStore.getTaskById(taskId)
-  if (!task) return
-
-  if (canDrag && moved && savedPreview) {
-    if (savedPreview.startMin !== origStartMin || savedPreview.endMin !== origEndMin) {
-      void taskStore.updateTask(taskId, {
-        startDate: localDayMinutesToIso(dayKey.value, savedPreview.startMin),
-        deadline: localDayMinutesToIso(dayKey.value, savedPreview.endMin),
-      })
-    }
-  } else if (!moved) {
-    openEditModal(task)
+  if (!task) {
+    blockDragPreview.value = null
+    return
   }
+
+  const shouldCommit =
+    canDrag &&
+    moved &&
+    savedPreview &&
+    (savedPreview.startMin !== origStartMin || savedPreview.endMin !== origEndMin)
+
+  if (shouldCommit && savedPreview) {
+    blockDragPreview.value = null
+    blockCommitPending.value = {
+      taskId: savedPreview.taskId,
+      startMin: savedPreview.startMin,
+      endMin: savedPreview.endMin,
+    }
+    clearBlockSettleFallbackTimer()
+    void nextTick(() => {
+      requestAnimationFrame(() => {
+        blockDragPreview.value = {
+          taskId: savedPreview.taskId,
+          startMin: savedPreview.startMin,
+          endMin: savedPreview.endMin,
+        }
+        blockSettleFallbackTimer = setTimeout(() => {
+          void finalizeBlockCommitAfterSettle()
+        }, BLOCK_LAYOUT_TRANSITION_MS + 60)
+      })
+    })
+    return
+  }
+
+  blockDragPreview.value = null
+
+  if (!moved) openEditModal(task)
+}
+
+function onBlockTransitionEnd(task: Task, e: TransitionEvent) {
+  if (e.currentTarget !== e.target) return
+  if (!blockCommitPending.value || blockCommitPending.value.taskId !== task.id) return
+  if (e.propertyName !== 'top' && e.propertyName !== 'height') return
+  void finalizeBlockCommitAfterSettle()
 }
 
 function onBlockPointerCancel(e: PointerEvent) {
@@ -397,14 +479,17 @@ function onBlockPointerCancel(e: PointerEvent) {
 }
 
 function goPrevDay() {
+  flushPendingBlockCommitIfAny()
   calendarStore.setSelectedDayKey(shiftDateKey(dayKey.value, -1))
 }
 
 function goNextDay() {
+  flushPendingBlockCommitIfAny()
   calendarStore.setSelectedDayKey(shiftDateKey(dayKey.value, 1))
 }
 
 function goToday() {
+  flushPendingBlockCommitIfAny()
   calendarStore.goToToday()
 }
 
@@ -493,6 +578,7 @@ function placeOrMoveDraftAtMinute(m: number) {
 
 function onGridPointerDown(e: PointerEvent) {
   if (e.button !== 0) return
+  flushPendingBlockCommitIfAny()
   const t = e.target as HTMLElement
   if (t.closest('.task-day-cal__block')) return
   if (t.closest('.task-day-cal__draft')) return
@@ -528,6 +614,7 @@ function onGridPointerCancel(e: PointerEvent) {
 
 function onDraftMovePointerDown(e: PointerEvent) {
   if (e.button !== 0) return
+  flushPendingBlockCommitIfAny()
   const el = draftBarRef.value
   if (!el) return
   draftInteraction.value = {
@@ -543,6 +630,7 @@ function onDraftMovePointerDown(e: PointerEvent) {
 
 function onDraftResizePointerDown(e: PointerEvent) {
   if (e.button !== 0) return
+  flushPendingBlockCommitIfAny()
   const el = draftBarRef.value
   if (!el) return
   draftInteraction.value = {
@@ -879,6 +967,7 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  transition: top 0.2s ease-out, height 0.2s ease-out;
 
   &:hover {
     background: rgba($color-primary, 0.2);
@@ -900,6 +989,7 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
   &--dragging {
     z-index: 4;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    transition: none;
   }
 }
 
