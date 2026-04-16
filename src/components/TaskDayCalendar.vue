@@ -17,7 +17,7 @@
       <button type="button" class="task-day-cal__today" @click="goToday">오늘</button>
     </div>
 
-    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생깁니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이 조절을 드래그한 뒤 놓으면(드롭) 새 업무 팝업이 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다.</p>
+    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서 10분 단위로 길이를 조절할 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 드래그 없이 바를 더블클릭해도 팝업을 열 수 있습니다.</p>
 
     <div v-if="anchorTasks.length > 0" class="task-day-cal__anchors">
       <span class="task-day-cal__anchors-label">시간 없음</span>
@@ -108,6 +108,7 @@
       :initial-title="modalInitialTitle"
       :initial-scores="modalInitialScores"
       :anchor-rect="modalAnchorRect"
+      :content-visible="quickModalContentVisible"
       :is-submitting="isModalSubmitting"
       @close="onQuickModalClose"
       @submit="onModalSubmit"
@@ -225,6 +226,17 @@ interface DraftResizeInteraction {
 }
 
 const draftInteraction = ref<DraftMoveInteraction | DraftResizeInteraction | null>(null)
+
+/** 새 업무(create) 모달이 열린 상태에서 드래프트 바 드래그 중이면 패널만 페이드아웃 */
+const quickModalContentVisible = computed(
+  () =>
+    !(
+      modalOpen.value &&
+      modalMode.value === 'create' &&
+      hasDraft.value &&
+      draftInteraction.value !== null
+    )
+)
 
 const draftBarStyle = computed(() => {
   const layout = layoutFromMinuteRange(
@@ -349,6 +361,7 @@ function placeOrMoveDraftAtMinute(m: number) {
     hasDraft.value = true
     draftStartMin.value = m
     draftEndMin.value = Math.min(m + DEFAULT_DRAFT_DURATION_MIN, totalMinutes)
+    openCreateFromDraft()
     return
   }
   const dur = draftEndMin.value - draftStartMin.value

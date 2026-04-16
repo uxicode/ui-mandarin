@@ -8,6 +8,7 @@
     >
       <div
         class="quick-task-modal"
+        :class="{ 'quick-task-modal--content-hidden': !contentVisible }"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
@@ -80,6 +81,8 @@ interface Props {
   isSubmitting?: boolean
   /** 드래프트 바 기준 위치 (px) */
   anchorRect?: PanelAnchor | null
+  /** false면 패널만 페이드아웃(open은 유지, 드래프트 드래그 중 등) */
+  contentVisible?: boolean
 }
 
 interface Emits {
@@ -92,6 +95,7 @@ const props = withDefaults(defineProps<Props>(), {
   initialTitle: '',
   isSubmitting: false,
   anchorRect: null,
+  contentVisible: true,
 })
 
 const emit = defineEmits<Emits>()
@@ -111,7 +115,7 @@ const panelInlineStyle = computed(() => {
       position: 'fixed' as const,
       top: '50%',
       left: '50%',
-      transform: 'translate(-50%, -50%)',
+      transform: 'translate(0, -50%)',
       width: 'min(400px, calc(100vw - 2rem))',
     }
   }
@@ -176,6 +180,13 @@ function submit() {
   box-shadow:
     $shadow-lg,
     0 0 0 1px rgba($color-gray-200, 0.9);
+  opacity: 1;
+  transition: opacity 0.22s ease;
+
+  &--content-hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 .quick-task-modal__heading {
