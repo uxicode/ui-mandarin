@@ -48,6 +48,7 @@
       <TaskDayCalendar
         :selected-task-id="props.selectedTaskId"
         @select="emit('select', $event)"
+        @delete="emit('delete', $event)"
         @exit-timeline="emit('exit-timeline')"
       />
     </div>
