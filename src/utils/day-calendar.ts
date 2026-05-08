@@ -55,12 +55,11 @@ export interface DayBlockLayout {
   heightPx: number
 }
 
-export function layoutTaskBlockForDay(
+/** layoutTaskBlockForDay 와 동일 규칙으로 해당 로컬일에 보이는 구간(분) */
+function resolveTaskVisibleSpanMinutes(
   task: Task,
-  dateKey: string,
-  contentHeight: number,
-  totalMinutes: number
-): DayBlockLayout | null {
+  dateKey: string
+): { topMin: number; durMin: number } | null {
   if (!taskHasDateOnCalendar(task, dateKey)) return null
 
   const day0 = startOfLocalDay(dateKey).getTime()
@@ -86,10 +85,28 @@ export function layoutTaskBlockForDay(
   const visEnd = Math.min(endMs!, day1)
   if (visEnd <= visStart) return null
 
-  const topMin = (visStart - day0) / 60000
-  const durMin = (visEnd - visStart) / 60000
-  const topPx = (topMin / totalMinutes) * contentHeight
-  const heightPx = Math.max((durMin / totalMinutes) * contentHeight, 4)
+  return {
+    topMin: (visStart - day0) / 60000,
+    durMin: (visEnd - visStart) / 60000,
+  }
+}
+
+export function visibleTaskDurationMinutesOnDay(task: Task, dateKey: string): number | null {
+  const span = resolveTaskVisibleSpanMinutes(task, dateKey)
+  return span ? span.durMin : null
+}
+
+export function layoutTaskBlockForDay(
+  task: Task,
+  dateKey: string,
+  contentHeight: number,
+  totalMinutes: number
+): DayBlockLayout | null {
+  const span = resolveTaskVisibleSpanMinutes(task, dateKey)
+  if (!span) return null
+
+  const topPx = (span.topMin / totalMinutes) * contentHeight
+  const heightPx = Math.max((span.durMin / totalMinutes) * contentHeight, 4)
   return { topPx, heightPx }
 }
 

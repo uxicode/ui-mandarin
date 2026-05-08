@@ -9,6 +9,7 @@ import {
   layoutFromMinuteRange,
   shiftDateKey,
   getTaskMinutesIfFullyOnLocalDay,
+  visibleTaskDurationMinutesOnDay,
 } from '@/utils/day-calendar'
 import type { Task } from '@/types/task'
 
@@ -18,6 +19,21 @@ describe('day-calendar utils', () => {
     expect(snapMinutesToSlot(29, DEFAULT_SLOT_MINUTES)).toBe(0)
     expect(snapMinutesToSlot(30, DEFAULT_SLOT_MINUTES)).toBe(30)
     expect(snapMinutesToSlot(45, DEFAULT_SLOT_MINUTES)).toBe(30)
+  })
+
+  it('visibleTaskDurationMinutesOnDay returns segment length on local day', () => {
+    const dayKey = '2026-04-16'
+    const startIso = localDayMinutesToIso(dayKey, 10 * 60)
+    const endIso = localDayMinutesToIso(dayKey, 10 * 60 + 30)
+    const task: Task = {
+      id: '1',
+      title: 't',
+      scores: { importance: 3, urgency: 3 },
+      completed: false,
+      startDate: startIso,
+      deadline: endIso,
+    }
+    expect(visibleTaskDurationMinutesOnDay(task, dayKey)).toBe(30)
   })
 
   it('minutesFromDayStartFromY maps Y to minutes', () => {

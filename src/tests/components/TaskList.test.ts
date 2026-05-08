@@ -1,18 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { useTaskStore } from '@/stores/task-store'
 import { useCalendarUiStore } from '@/stores/calendar-ui-store'
 import TaskList from '@/components/TaskList.vue'
-
-// Mock components
-vi.mock('@vuepic/vue-datepicker', () => ({
-  VueDatePicker: {
-    name: 'VueDatePicker',
-    template: '<input />',
-    props: ['modelValue'],
-  },
-}))
 
 describe('TaskList', () => {
   beforeEach(() => {
@@ -20,269 +11,68 @@ describe('TaskList', () => {
     useCalendarUiStore().selectedCalendarDay = null
   })
 
-  it('should render header with title and add button', () => {
+  it('should render TaskDayCalendar inside timeline wrap', () => {
     const wrapper = mount(TaskList, {
       global: {
         stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
+          TaskDayCalendar: { template: '<div class="task-day-cal-stub" />' },
         },
       },
     })
 
-    expect(wrapper.find('.task-list__title').text()).toBe('업무 목록')
-    expect(wrapper.find('.task-list__add-button').exists()).toBe(true)
+    expect(wrapper.find('.task-list__timeline-wrap').exists()).toBe(true)
+    expect(wrapper.find('.task-day-cal-stub').exists()).toBe(true)
   })
 
-  it('should show empty message when all tasks are completed', async () => {
-    const store = useTaskStore()
-    await store.addTask({
-      title: 'Done only',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-    })
-    await store.updateTask(store.tasks[0].id, { completed: true })
-
+  it('should not render legacy header controls', () => {
     const wrapper = mount(TaskList, {
       global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
+        stubs: { TaskDayCalendar: true },
       },
     })
 
-    await flushPromises()
-
-    expect(wrapper.find('.task-list__empty').exists()).toBe(true)
-    expect(wrapper.find('.task-list__empty').text()).toContain('할당된 업무 목록이 없습니다')
+    expect(wrapper.find('.task-list__header').exists()).toBe(false)
+    expect(wrapper.find('.task-list__add-button').exists()).toBe(false)
   })
 
-  it('should display incomplete tasks', async () => {
+  it('should keep tasks out of DOM as plain list rows', async () => {
     const store = useTaskStore()
     await store.addTask({
-      title: 'Incomplete Task',
+      title: 'Cal only',
       scores: { importance: 3, urgency: 3 },
       completed: false,
     })
 
     const wrapper = mount(TaskList, {
       global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
+        stubs: { TaskDayCalendar: true },
       },
     })
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Incomplete Task')
-    expect(wrapper.text()).toContain('진행 중')
+    expect(wrapper.find('.task-item').exists()).toBe(false)
   })
 
-  it('should display completed tasks in separate section', async () => {
+  it('should sync calendar when selectedTaskId is set', async () => {
     const store = useTaskStore()
-    
     await store.addTask({
-      title: 'Incomplete Task',
+      title: 'Synced',
       scores: { importance: 3, urgency: 3 },
       completed: false,
     })
-
-    await store.addTask({
-      title: 'Will be completed',
-      scores: { importance: 4, urgency: 4 },
-      completed: false,
-    })
-
-    // Complete the second task
-    const taskId = store.tasks[1].id
-    await store.updateTask(taskId, { completed: true })
+    const id = store.tasks[0].id
 
     const wrapper = mount(TaskList, {
+      props: { selectedTaskId: id },
       global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
+        stubs: { TaskDayCalendar: true },
       },
     })
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('진행 중 (1)')
-    expect(wrapper.text()).toContain('완료 (1)')
-    expect(wrapper.text()).toContain('Incomplete Task')
-    expect(wrapper.text()).toContain('Will be completed')
-  })
-
-  it('should emit select event when task is clicked', async () => {
-    const store = useTaskStore()
-    await store.addTask({
-      title: 'Test Task',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-    })
-
-    const wrapper = mount(TaskList, {
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    const taskContent = wrapper.find('.task-item__content')
-    await taskContent.trigger('click')
-
-    expect(wrapper.emitted('select')).toBeTruthy()
-  })
-
-  it('should toggle task completion when checkbox is clicked', async () => {
-    const store = useTaskStore()
-    await store.addTask({
-      title: 'Test Task',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-    })
-
-    const wrapper = mount(TaskList, {
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    const checkbox = wrapper.find('.task-item__checkbox')
-    await checkbox.trigger('change')
-
-    await flushPromises()
-
-    expect(store.tasks[0].completed).toBe(true)
-  })
-
-  it('should show edit form when edit button is clicked', async () => {
-    const store = useTaskStore()
-    await store.addTask({
-      title: 'Test Task',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-    })
-
-    const wrapper = mount(TaskList, {
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    const editButton = wrapper.find('.task-item__button--edit')
-    await editButton.trigger('click')
-
-    await flushPromises()
-
-    expect(wrapper.find('.task-item__edit').exists()).toBe(true)
-  })
-
-  it('should emit toggle-timeline when add button is clicked', async () => {
-    const wrapper = mount(TaskList, {
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    const addButton = wrapper.find('.task-list__add-button')
-    await addButton.trigger('click')
-
-    await flushPromises()
-
-    expect(wrapper.emitted('toggle-timeline')).toBeTruthy()
-  })
-
-  it('should display task with dates', async () => {
-    const store = useTaskStore()
-    const end = new Date()
-    end.setHours(23, 59, 0, 0)
-    await store.addTask({
-      title: 'Task with dates',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-      startDate: new Date(end.getFullYear(), end.getMonth(), 1).toISOString(),
-      deadline: end.toISOString(),
-    })
-
-    const wrapper = mount(TaskList, {
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    expect(wrapper.find('.task-item__dates').exists()).toBe(true)
-  })
-
-  it('should highlight selected task', async () => {
-    const store = useTaskStore()
-    await store.addTask({
-      title: 'Test Task',
-      scores: { importance: 3, urgency: 3 },
-      completed: false,
-    })
-
-    const wrapper = mount(TaskList, {
-      props: {
-        selectedTaskId: store.tasks[0].id,
-      },
-      global: {
-        stubs: {
-          StarRating: true,
-          TaskDayCalendar: true,
-          TaskTimeline: true,
-          VueDatePicker: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    const taskItem = wrapper.find('.task-item')
-    expect(taskItem.classes()).toContain('task-item--selected')
+    expect(useCalendarUiStore().selectedCalendarDay).not.toBeNull()
+    await wrapper.unmount()
   })
 })
