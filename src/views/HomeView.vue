@@ -7,6 +7,7 @@
 
       <section class="app__col app__col--tasks">
         <TaskList
+          :section-title="TASK_LIST_DAY_SECTION_TITLE"
           :selected-task-id="selectedTaskId"
           @select="handleSelect"
           @delete="handleDelete"
@@ -30,6 +31,7 @@ import { useTaskStore } from '@/stores/task-store'
 import TaskPlanningPanel from '@/components/TaskPlanningPanel.vue'
 import TaskList from '@/components/TaskList.vue'
 import PriorityMatrix from '@/components/PriorityMatrix.vue'
+import { TASK_LIST_DAY_SECTION_TITLE } from '@/constants/task-list-ui'
 
 const taskStore = useTaskStore()
 

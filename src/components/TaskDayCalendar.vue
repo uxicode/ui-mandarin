@@ -8,7 +8,37 @@
         </svg>
         이전
       </button>
-      <span class="task-day-cal__nav-label">{{ dayLabel }}</span>
+      <div class="task-day-cal__nav-title-wrap">
+        <span class="task-day-cal__nav-label">{{ dayLabel }}</span>
+        <div class="task-day-cal__hint-wrap">
+          <button
+            ref="hintBtnRef"
+            type="button"
+            class="task-day-cal__hint-btn"
+            aria-label="일간 캘린더 안내"
+            @mouseenter="openHintTooltip"
+            @mouseleave="closeHintTooltip"
+            @focus="openHintTooltip"
+            @blur="closeHintTooltip"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              class="task-day-cal__hint-icon">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" stroke-linecap="round" />
+            </svg>
+          </button>
+          <Teleport to="body">
+            <div
+              class="task-day-cal__hint-tooltip"
+              :class="{ 'task-day-cal__hint-tooltip--visible': showHintTooltip }"
+              :style="{ top: hintTooltipPos.top + 'px', left: hintTooltipPos.left + 'px' }"
+              role="tooltip"
+            >
+              {{ calendarHintText }}
+            </div>
+          </Teleport>
+        </div>
+      </div>
       <button type="button" class="task-day-cal__nav-btn" @click="goNextDay">
         다음
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -18,10 +48,6 @@
       </button>
       <button type="button" class="task-day-cal__today" @click="goToday">오늘</button>
     </div>
-
-    <p class="task-day-cal__hint">빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서는 10분 단위로 길이를 조절할 수 있으며
-      최소 30분까지 줄일 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 시간이 잡힌 업무 바는 왼쪽 체크박스로 완료를 표시하고, 연필 버튼으로 수정 팝업을 엽니다. 같은 날 안에만 표시되는 업무 바는 드래그해 시간대를 바꿀 수
-      있습니다.</p>
 
     <div v-if="anchorTasks.length > 0" class="task-day-cal__anchors">
       <span class="task-day-cal__anchors-label">시간 없음</span>
@@ -191,6 +217,9 @@ import type { Task, TaskScores } from '@/types/task'
 
 const defaultNewTitle = '\uc0c8 \uc5c5\ubb34'
 
+const calendarHintText =
+  '빈 시간대를 클릭하면 1시간 길이의 바가 생기며 새 업무 팝업이 바로 열립니다. 바를 드래그해 시간대를 옮기고, 하단 가장자리에서는 10분 단위로 길이를 조절할 수 있으며 최소 30분까지 줄일 수 있습니다. 이동이나 길이를 바꾼 뒤 놓으면(드롭) 팝업이 다시 열립니다. 시간이 잡힌 업무 바는 왼쪽 체크박스로 완료를 표시하고, 연필 버튼으로 수정 팝업을 엽니다. 같은 날 안에만 표시되는 업무 바는 드래그해 시간대를 바꿀 수 있습니다.'
+
 interface Props {
   selectedTaskId?: string
 }
@@ -263,6 +292,25 @@ const anchorTasks = computed(() =>
 const gridRef = ref<HTMLElement | null>(null)
 const scrollAreaRef = ref<HTMLElement | null>(null)
 const draftBarRef = ref<HTMLElement | null>(null)
+
+const showHintTooltip = ref(false)
+const hintBtnRef = ref<HTMLButtonElement | null>(null)
+const hintTooltipPos = ref({ top: 0, left: 0 })
+
+function openHintTooltip() {
+  if (hintBtnRef.value) {
+    const rect = hintBtnRef.value.getBoundingClientRect()
+    hintTooltipPos.value = {
+      top: rect.bottom + 6,
+      left: rect.left + rect.width / 2,
+    }
+  }
+  showHintTooltip.value = true
+}
+
+function closeHintTooltip() {
+  showHintTooltip.value = false
+}
 
 function scrollTimelineToDefaultStart() {
   const el = scrollAreaRef.value
@@ -887,9 +935,16 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
   height: 14px;
 }
 
-.task-day-cal__nav-label {
+.task-day-cal__nav-title-wrap {
   flex: 1;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-day-cal__nav-label {
   font-size: 0.875rem;
   font-weight: 700;
   color: $color-gray-800;
@@ -910,10 +965,70 @@ async function onModalSubmit(payload: { title: string; scores: TaskScores }) {
   }
 }
 
-.task-day-cal__hint {
-  margin: 0;
-  font-size: 0.75rem;
-  color: $color-gray-500;
+.task-day-cal__hint-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.task-day-cal__hint-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: $color-gray-400;
+  cursor: pointer;
+  transition: color 0.15s;
+
+  &:hover,
+  &:focus-visible {
+    color: $color-primary;
+    outline: none;
+  }
+}
+
+.task-day-cal__hint-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.task-day-cal__hint-tooltip {
+  position: fixed;
+  transform: translateX(-50%) translateY(-4px);
+  max-width: min(280px, calc(100vw - 2rem));
+  padding: $spacing-sm $spacing-md;
+  background: $color-gray-800;
+  color: $color-white;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  border-radius: $radius-md;
+  box-shadow: $shadow-md;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid $color-gray-800;
+  }
+
+  &--visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .task-day-cal__anchors {
